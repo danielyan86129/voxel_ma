@@ -16,6 +16,7 @@ using trimesh::ivec4;
 using trimesh::ivec2;
 using trimesh::xform;
 typedef trimesh::Vec<3, unsigned int> uTriFace;
+//typedef trimesh::TriMesh::Face uTriFace;
 typedef trimesh::vec3 TriColor;
 struct RGBColor;
 

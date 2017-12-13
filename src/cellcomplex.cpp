@@ -278,3 +278,14 @@ void cellcomplex::finalize()
 		<< build_adj_t.elapseMilli().count() << "ms" << endl;*/
 	cout << "time -> finalize CC:" << t_total.elapseMilli().count() << " ms" << endl;
 }
+
+void cellcomplex::eulerChar( eulerchar& _ec ) const
+{
+	int ncc = util::findNumConnComponents( this->m_vts, this->m_edges );
+	_ec.V = numVts();
+	_ec.E = numEdges();
+	_ec.F = numFaces();
+	_ec.T = 0;
+	_ec.euler = _ec.V - _ec.E + _ec.F - _ec.T;
+	_ec.C = ncc;
+}

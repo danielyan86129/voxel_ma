@@ -65,6 +65,17 @@ namespace util {
 		}
 		return true;
 	}
+	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2> _edges )
+	{
+		vector<vector<int>> vvadj( _vts.size(), {} );
+		for ( auto e : _edges )
+		{
+			vvadj[ e[ 0 ] ].push_back( e[ 1 ] );
+			vvadj[ e[ 1 ] ].push_back( e[ 0 ] );
+		}
+		vector<bool> visited( _vts.size(), false );
+		return findNumConnComponents( vvadj, _vts.size(), visited );
+	}
 	int findNumConnComponents( 
 		const vector<vector<int>>& _v_v_adj_tbl, 
 		const vector<point>& _vts,
@@ -167,7 +178,9 @@ namespace util {
 		edges_unique.clear();
 		visited.clear();
 	}
-	void computeEulerChar( const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _tris, eulerchar & _euler_struct )
+	void computeEulerChar( 
+		const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _tris, 
+		eulerchar & _euler_struct )
 	{
 		std::unordered_set<ivec2, ivec2Hash> unique_edges;
 		unique_edges.insert( _edges.begin(), _edges.end() );
@@ -182,6 +195,7 @@ namespace util {
 		int F = _tris.size();
 		int T = 0;
 		// # connect components
+		// TODO: factor the logic to another function, e.g. connComps()
 		vector<vector<int>> v_v_adj_tbl;
 		unordered_set<int> vts_unique_ids;
 		vector<bool> visited( V, false );

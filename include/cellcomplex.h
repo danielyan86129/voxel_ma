@@ -66,6 +66,9 @@ struct cellcomplex
 	//
 	void finalize();
 	//
+	// compute euler characteristics for this complex
+	void eulerChar( eulerchar& _ec ) const;
+	//
 	// returns primitive (vert, edge, or face) by its index
 	//
 	inline const point& getVert( size_t _vi ) const

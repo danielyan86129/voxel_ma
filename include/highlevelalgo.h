@@ -37,4 +37,7 @@ namespace voxelvoro
 	//
 	// convert a dense volume (stored in .mrc file) to a sparse volume (stored in .sof file)
 	bool denseToSparse( const char* _src, const char* _dest );
+	//
+	// return the num of maximally closed sub-complex in the given cell complex
+	int nClosedComponents( const cellcomplex& _cc );
 }

@@ -8,6 +8,7 @@
 
 #include "octree.h"
 #include "voxelapps.h"
+#include "..\include\highlevelalgo.h"
 
 using trimesh::TriMesh;
 
@@ -309,5 +310,38 @@ namespace voxelvoro
 		oct_vol.writeToFile( _dest );
 		cout << "Done octree writting." << endl;
 		return true;
+	}
+	int nClosedComponents( const cellcomplex & _cc )
+	{
+		int n_cc = 0;
+		CellComplexThinning ccthin;
+		//TODO: maybe change the argument type to const *?
+		ccthin.setup( const_cast<cellcomplex*>( &_cc ) ); 
+		vector<float> v_msure, e_msure, f_msure;
+		// we want to remove everything except closed pockets. so actual measure values are irrelevant. 
+		// we set measures all to 0's, and threshold to 1
+		for ( auto i = 0; i < _cc.numVts(); ++i )
+			v_msure.push_back( 0.0f );
+		for ( auto i = 0; i < _cc.numEdges(); ++i )
+			e_msure.push_back( 0.0f );
+		for ( auto i = 0; i < _cc.numFaces(); ++i )
+			f_msure.push_back( 0.0f );
+		ccthin.assignElementValues( v_msure, e_msure, f_msure );
+		// process and prune
+		ccthin.preprocess();
+		ccthin.prune( 1.0f, 1.0f, false );
+		// get remaining cc
+		auto remain_cc = ccthin.remainingCC();
+		// num of closed components?
+		vector<vector<int>> v_v_adj( _cc.numVts(), {} );
+		for ( auto i = 0; i < _cc.numEdges(); ++i )
+		{
+			auto e = _cc.getEdge( i );
+			v_v_adj[ e[ 0 ] ].push_back( e[ 1 ] );
+			v_v_adj[ e[ 1 ] ].push_back( e[ 0 ] );
+		}
+		vector<bool> visited(_cc.numVts(), false);
+		n_cc = util::findNumConnComponents( v_v_adj, v_v_adj.size(), visited );
+		return n_cc;
 	}
 }

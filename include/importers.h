@@ -14,7 +14,9 @@ namespace voxelvoro
 		// cannot open input file
 		NOOPENINPUT,
 		// doesn't support input volume file
-		INVALID_VOL_FILE
+		INVALID_VOL_FILE,
+		// general unknown format error
+		INVALID_FORMAT
 	};
 
 	//
@@ -34,6 +36,11 @@ namespace voxelvoro
 	// @param _sites_pos_file: optionally import the contributing sites from the given file
 	ImportErrCode readVoroInfo( const char* _basename, VoroInfo& _voro, 
 		bool _need_euler, const char* _sites_pos_file = nullptr );
+	//
+	// import mesh from the given file name (file formats: .ply | .off)
+	// the file could describe a manifold/non-manifold 2-cell complex
+	// returns a cellcomplex representing the mesh
+	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc );
 	//
 	// read vts, edges, and faces from a ply mesh file along with measures
 	ImportErrCode readFromPLY( const char* _ply_filename,
