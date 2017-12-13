@@ -442,6 +442,8 @@ cellcomplex CellComplexThinning::remainingCC()
 	}
 
 	cout << "# remaining vts ( >= # connected components): "<<vts_remained_indices.size()<<endl;
+	cout << "# remaining edges: " << edge_indices.size() << endl;
+	cout << "# remaining faces: " << face_indices.size() << endl;
 
 	// compact remaining cc
 	util::compactify( vts_remained_indices, edges_cc, tri_faces_cc );
@@ -482,6 +484,8 @@ void CellComplexThinning::remainingCC(
 
 	cout << "# remaining vts after thinning ( >= # connected components): "
 		<<vts_remained_indices.size()<<endl;
+	cout << "# remaining edges: " << edge_indices.size() << endl;
+	cout << "# remaining faces: " << face_indices.size() << endl;
 
 	// lastly compact remaining cc
 	util::compactify( vts_remained_indices, edges_cc, tri_faces_cc );

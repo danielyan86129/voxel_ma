@@ -140,13 +140,15 @@ namespace util {
 	//
 	bool is_degenerate(const vector<point> _poly, float _eps);
 
-	// find the num of connected components given a v-v-adjacency table
+	// find the num of connected components
+	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2> _edges );
+	// user provides vert-vert adj list, a pre-allocated list for visited flag
 	int findNumConnComponents(
 		const vector<vector<int>>& _v_v_adj_tbl,
 		const vector<point>& _vts,
 		vector<bool>& _visited
 		);
-	int findNumConnComponents(
+	int findNumConnComponents(// TODO: get rid of the parameter: _n_vts 
 		const vector< vector<int> >& _v_v_adj_tbl,
 		int _n_vts, vector<bool>& _visited
 		);
@@ -177,7 +179,7 @@ namespace util {
 	TriColor GetColour( float v, float vmin, float vmax );
 
 	//
-	// return whether two boxes (origin + dimensions) intersect
+	// return whether two axis-aligned boxes (origin + dimensions) intersect
 	bool intersect( const ivec3& _o1, const ivec3& _dim1, const ivec3& _o2, const ivec3& _dim2 );
 }
 

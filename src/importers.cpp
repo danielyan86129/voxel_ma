@@ -5,10 +5,12 @@
 #include <sstream> 
 #include <cassert>
 #include <plyall.h>
+#include <filesystem>
 
 namespace voxelvoro {
 	using std::cout;
 	using std::endl;
+	namespace fs = std::experimental::filesystem;
 
 	ImportErrCode readVolume( const char * _vol_file, shared_ptr<Volume3DScalar>& _vol )
 	{
@@ -151,8 +153,99 @@ namespace voxelvoro {
 		cout << "Done: voro info read." << endl;
 		return ImportErrCode::SUCCESS;
 	}
-	ImportErrCode readFromPLY( const char * _ply_filename, vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris, vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure )
+	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc )
 	{
+		auto fname = fs::path( _filename );
+		if ( fname.extension() == ".off" )
+		{
+			auto mesh_tmp = trimesh::TriMesh::read( _filename );
+			if ( !mesh_tmp )
+				return ImportErrCode::NOOPENINPUT;
+			vector<uTriFace> trifaces;
+			for ( auto f : mesh_tmp->faces )
+				trifaces.emplace_back( f[ 0 ], f[ 1 ], f[ 2 ] );
+			_cc = cellcomplex( mesh_tmp->vertices, {}, trifaces );
+			delete mesh_tmp;
+		}
+		else if ( fname.extension() == ".ply" )
+		{
+			vector<float> dump;
+			vector<point> vts;
+			vector<ivec2> edges;
+			vector<uTriFace> faces;
+			readFromPLY( _filename.c_str(), vts, edges, faces, dump, dump, dump );
+			_cc = cellcomplex( vts, edges, faces );
+		}
+		else
+			return ImportErrCode::INVALID_FORMAT;
+		return ImportErrCode::SUCCESS;
+	}
+	// TODO: add logic for reading V/E/F measures from file
+	ImportErrCode readFromPLY( const char * _ply_filename, 
+		vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris, 
+		vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure )
+	{
+		std::map<string, PlyProperty> v_props_map;
+		PlyProperty v_props[] = {// can add more properties (e.g. a scalar measure Vertex.s) 
+			{ "x", Float32, Float32, offsetof( ply::Vertex, x ), 0, 0, 0, 0 },
+			{ "y", Float32, Float32, offsetof( ply::Vertex, y ), 0, 0, 0, 0 },
+			{ "z", Float32, Float32, offsetof( ply::Vertex, z ), 0, 0, 0, 0 } 
+		};
+		v_props_map[ "x" ] = v_props[ 0 ];
+		v_props_map[ "y" ] = v_props[ 1 ];
+		v_props_map[ "z" ] = v_props[ 2 ];
+		map<string, PlyProperty> e_props_map;
+		PlyProperty e_props[] = {
+			{ "vertex1", Int32, Int32, offsetof( ply::Edge, v1 ), PLY_SCALAR, 0, 0, 0 },
+			{ "vertex2", Int32, Int32, offsetof( ply::Edge, v2 ), PLY_SCALAR, 0, 0, 0 }
+		};
+		e_props_map[ "vertex1" ] = e_props[ 0 ];
+		e_props_map[ "vertex2" ] = e_props[ 1 ];
+		std::map<std::string, PlyProperty> f_props_map;
+		PlyProperty f_props[] = {
+			{ "vertex_indices", Int32, Int32, offsetof( ply::Face, verts ),
+			PLY_LIST, Uint8, Uint8, offsetof( ply::Face,nvts ) }
+		};
+		f_props_map[ "vertex_indices" ] = f_props[ 0 ];
+		vector<ply::Vertex> vts; // = *_skel_vts;
+		vector<ply::Edge> edges; // = *_skel_edges;
+		vector<ply::Face> faces; //*_skel_faces;
+
+		ply::PLYreader ply_reader;
+		auto err = ply_reader.read( _ply_filename, v_props_map, e_props_map, f_props_map, vts, edges, faces );
+		if ( err != ply::SUCCESS )
+		{
+			cout << "Error: cannot read ply file: " << _ply_filename << endl;
+			return ImportErrCode::NOOPENINPUT;
+		}
+		_output_vts.resize( vts.size() );
+		_output_edges.resize( edges.size() );
+		_output_tris.resize( faces.size() );
+		// for now not reading any measure
+		_vts_msure.clear(); _edges_msure.clear(); _faces_msure.clear();
+		for ( auto i = 0; i < vts.size(); ++i )
+		{
+			const auto& v = vts[ i ];
+			auto& u = _output_vts[ i ];
+			u[ 0 ] = v.x;
+			u[ 1 ] = v.y;
+			u[ 2 ] = v.z;
+		}
+		for ( auto i = 0; i < edges.size(); ++i )
+		{
+			const auto& e = edges[ i ];
+			auto& e1 = _output_edges[ i ];
+			e1[ 0 ] = e.v1;
+			e1[ 1 ] = e.v2;
+		}
+		for ( auto i = 0; i < faces.size(); ++i )
+		{
+			const auto& f = faces[ i ];
+			auto& t = _output_tris[ i ];
+			t[ 0 ] = f.verts[ 0 ];
+			t[ 1 ] = f.verts[ 1 ];
+			t[ 2 ] = f.verts[ 2 ];
+		}
 		return ImportErrCode::SUCCESS;
 	}
 	ImportErrCode readNumberList( const char * _nums_filename, vector<float>& _nums )
@@ -219,50 +312,13 @@ namespace voxelvoro {
 		// optionally load skeleton vertices
 		if ( _skel_name != nullptr && _skel_vts != nullptr )
 		{
-			std::map<string, PlyProperty> v_props_map;
-			PlyProperty v_props[] = {
-				{ "x", Float32, Float32, offsetof( ply::Vertex, x ), 0, 0, 0, 0 },
-				{ "y", Float32, Float32, offsetof( ply::Vertex, y ), 0, 0, 0, 0 },
-				{ "z", Float32, Float32, offsetof( ply::Vertex, z ), 0, 0, 0, 0 }
-			};
-			v_props_map[ "x" ] = v_props[ 0 ];
-			v_props_map[ "y" ] = v_props[ 1 ];
-			v_props_map[ "z" ] = v_props[ 2 ];
-			map<string, PlyProperty> e_props_map;
-			PlyProperty e_props[] = {
-				{ "vertex1", Int32, Int32, offsetof( ply::Edge, v1 ), PLY_SCALAR, 0, 0, 0 },
-				{ "vertex2", Int32, Int32, offsetof( ply::Edge, v2 ), PLY_SCALAR, 0, 0, 0 }
-			};
-			e_props_map[ "vertex1" ] = e_props[ 0 ];
-			e_props_map[ "vertex2" ] = e_props[ 1 ];
-			std::map<std::string, PlyProperty> f_props_map;
-			PlyProperty f_props[] = {
-				{ "vertex_indices", Int32, Int32, offsetof( ply::Face, verts ),
-				PLY_LIST, Uint8, Uint8, offsetof( ply::Face,nvts ) }
-			};
-			f_props_map[ "vertex_indices" ] = f_props[ 0 ];
-			vector<ply::Vertex> vts; // = *_skel_vts;
-			vector<ply::Edge> edges; // = *_skel_edges;
-			vector<ply::Face> faces; //*_skel_faces;
-
-			ply::PLYreader ply_reader;
-			if ( ply_reader.read( _skel_name, v_props_map, e_props_map, f_props_map, vts, edges, faces ) != ply::SUCCESS )
-			{
-				cout << "failed to read skeleton file: " << _skel_name << endl;
-				return ImportErrCode::NOOPENINPUT;
-			}
 			_skel_vts->clear();
 			_skel_edges->clear();
 			_skel_faces->clear();
-			_skel_vts->reserve( vts.size() );
-			_skel_edges->reserve( edges.size() );
-			_skel_faces->reserve( faces.size() );
-			for ( const auto& v : vts )
-				_skel_vts->push_back( { v.x, v.y, v.z } );
-			for ( const auto& e : edges )
-				_skel_edges->push_back( { e.v1, e.v2 } );
-			for ( const auto& f : faces )
-				_skel_faces->push_back( uTriFace( f.verts[ 0 ], f.verts[ 1 ], f.verts[ 2 ] ) );
+			vector<float> msure_dump;
+			auto err = readFromPLY( _skel_name, *_skel_vts, *_skel_edges, *_skel_faces, msure_dump, msure_dump, msure_dump );
+			if ( err != ImportErrCode::SUCCESS )
+				return err;
 		}
 		
 		return ImportErrCode::SUCCESS;

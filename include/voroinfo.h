@@ -178,16 +178,6 @@ namespace voxelvoro
 		void trace_face( const vector<int>& _f_of_sides, const vector<ivec2>& _edges,
 			vector<int>& _f_of_vts ) const;
 		//
-		// compute the num of connected components of this voro diagram 
-		// @note: singular touching at a vertex is considered disconnected
-		// @param _subset_faces: set to nullptr if want to compute for all faces
-		int compute_conn_cmpnts( const vector<int>* _subset_faces = nullptr );
-		//
-		// compute the num of connected components of this voro diagram 
-		// @note: singular touching at a vertex is considered connected
-		// @param _subset_faces: set to nullptr if want to compute for all faces
-		int compute_conn_cmpnts( const vector<int>* _subset_faces, int _flood_across_vertex );
-		//
 		// compute the multiplicity of each vertex, including the infinite vert (ref. by edge/face as -1)
 		void compute_multiplicity_vts();
 

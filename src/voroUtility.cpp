@@ -19,7 +19,7 @@ namespace fs = std::experimental::filesystem;
 // 
 // define valid modes here
 enum class ValidMode {
-	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE
+	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, TOPO
 };
 std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2mat", ValidMode::MRC2MAT},
@@ -27,7 +27,8 @@ std::map<std::string, ValidMode> validmodes_map = {
 	{"voro2mesh", ValidMode::VORO2MESH},
 	{"mrc2sof", ValidMode::MRC2SOF},
 	{"r", ValidMode::R},
-	{"t", ValidMode::TREE}
+	{"t", ValidMode::TREE},
+	{"topo", ValidMode::TOPO}
 };
 //// flags/args for the program
 //ValidMode mode; // current mode 
@@ -89,6 +90,13 @@ DEFINE_string( sof, "", "the output volume in format .sof the input will be conv
 
 // cmd options for -md=t
 DEFINE_string( skm, "", "the input file containing graph and edge measures .skMsure. REQUIRED." );
+
+// cmd options for -md=topo
+DEFINE_string( meshToCheck, "",
+	"The input file representing a mesh with open boundary (e.g. medial axis). REQUIRED."\
+	"We want to detect whether there are any closed components - \"pockets\" on it." );
+
+
 void printUsage()
 {
 	cout << google::ProgramUsage() << endl;
@@ -355,6 +363,26 @@ void main( int _argc, char * _argv[] )
 		graphapp::exportTree( g, parent, skm_tree_file );
 		cout << "Done: tree exported to file -> " << skm_tree_file << endl;
 
+		goto SUCCESS;
+	}
+	else if ( FLAGS_md == "topo" )
+	{
+		// read in mesh
+		cellcomplex cc;
+		auto err = voxelvoro::readMesh( FLAGS_meshToCheck, cc );
+		if ( err != voxelvoro::ImportErrCode::SUCCESS )
+		{
+			cout << "Error: cannot read file: " << FLAGS_meshToCheck << endl;
+			goto FAILURE;
+		}
+		// euler char
+		eulerchar euler_char;
+		cc.eulerChar( euler_char );
+		cout << "euler char -> " << euler_char.euler << endl;
+		cout << "connected component -> " << euler_char.C << endl;
+		// remove open components. if anything left, the mesh has closed pockets.
+		int n_closed = voxelvoro::nClosedComponents( cc );
+		cout << "closed component -> " << n_closed << endl;
 		goto SUCCESS;
 	}
 	else // unrecognized option
