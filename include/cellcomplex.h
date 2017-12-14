@@ -32,6 +32,16 @@ struct cellcomplex
 
 	~cellcomplex();
 	//
+	// compute connected components based on face adjacency, i.e.
+	// only consider two faces sharing an edge as connected
+	// @param _subset_faces: set to nullptr if want to compute for all faces
+	int compute_conn_cmpnts( const vector<int>* _subset_faces = nullptr ) const;
+	//
+	// compute the num of connected components based on vertex adjacenty, i.e.
+	// two vertices belong to same conn comp as long as connected by an edge
+	// @param _subset_faces: set to nullptr if want to compute for all faces
+	int compute_conn_cmpnts( const vector<int>* _subset_faces, int overload_func_tag ) const;
+	//
 	// pre-allocate space for vts, edges, faces
 	//
 	inline void allocVts( int _n )

@@ -333,15 +333,10 @@ namespace voxelvoro
 		// get remaining cc
 		auto remain_cc = ccthin.remainingCC();
 		// num of closed components?
-		vector<vector<int>> v_v_adj( _cc.numVts(), {} );
-		for ( auto i = 0; i < _cc.numEdges(); ++i )
-		{
-			auto e = _cc.getEdge( i );
-			v_v_adj[ e[ 0 ] ].push_back( e[ 1 ] );
-			v_v_adj[ e[ 1 ] ].push_back( e[ 0 ] );
-		}
-		vector<bool> visited(_cc.numVts(), false);
-		n_cc = util::findNumConnComponents( v_v_adj, v_v_adj.size(), visited );
+		// only worth counting when there are faces left
+		if ( remain_cc.numFaces() == 0 )
+			return 0;
+		n_cc = remain_cc.compute_conn_cmpnts();
 		return n_cc;
 	}
 }

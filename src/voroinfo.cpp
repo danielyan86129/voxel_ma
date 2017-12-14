@@ -1081,14 +1081,14 @@ namespace voxelvoro {
 			E = (int)valid_edges_indices.size();
 			F = (int)valid_faces_indices.size();
 			// TODO: need to take in a set of valid vts, not faces
-			C = compute_conn_cmpnts(&valid_faces_indices, 1);
+			C = m_geom.compute_conn_cmpnts( &valid_faces_indices, 1 );
 		}
 		else
 		{
 			V = (int)m_geom.numVts();
 			E = (int)m_geom.numEdges();
 			F = (int)m_geom.numFaces();
-			C = compute_conn_cmpnts();
+			C = m_geom.compute_conn_cmpnts();
 		}
 
 		//for ( const auto& vi : remain_vts_indices )
@@ -1552,176 +1552,6 @@ namespace voxelvoro {
 			}
 			_f_of_vts[ i ] = pre_v;
 		}
-	}
-	int VoroInfo::compute_conn_cmpnts(const vector<int>* _subset_faces)
-	{
-		int ncc = 0;
-		// construct 
-		// - edge_id-face_id adjacency table
-		vector< vector<int> > e_f_adj_tbl;
-		e_f_adj_tbl.resize( m_geom.numEdges() );
-		vector<bool> visited_f( m_geom.numFaces(), false );
-		vector<bool> visited_e( m_geom.numEdges(), false );
-		vector<int> f_e_rep;
-		if ( _subset_faces )
-		{
-			// conn cmpnts computation is constrained within only a subset of faces 
-			// therefore we need to *block* other faces properly
-			set<int> subset( _subset_faces->begin(), _subset_faces->end() );
-			for ( int fi = 0; fi < m_geom.numFaces(); ++fi )
-			{
-				if ( subset.count( fi ) > 0 )
-				{
-					visited_f[ fi ] = false; // this face is visitable!
-					m_geom.getFaceERep( fi, f_e_rep );
-					for ( const auto& ei : f_e_rep )
-					{
-						e_f_adj_tbl[ ei ].push_back( fi );
-					}
-				}
-				else
-				{
-					visited_f[ fi ] = true; // block this face, i.e. not visitable! 
-				}
-			}
-			subset.clear();
-		}
-		else
-		{
-			// computation occurs in the set of all faces
-			for ( int fi = 0; fi < m_geom.numFaces(); ++fi )
-			{
-				visited_f[ fi ] = false;
-				m_geom.getFaceERep( fi, f_e_rep );
-				for ( const auto& ei : f_e_rep )
-				{
-					e_f_adj_tbl[ ei ].push_back( fi );
-				}
-			}
-		}
-
-		// trace components starting from unvisited face
-		queue<int> face_q;
-		for ( int fi = 0; fi < m_geom.numFaces(); ++fi )
-		{
-			if (visited_f[fi] )
-				continue;
-
-			ncc++;
-			face_q.push( fi );
-			while ( !face_q.empty() )
-			{
-				auto cur_fi = face_q.front();
-				face_q.pop();
-				if ( visited_f[cur_fi] )
-					continue;
-				
-				visited_f[ cur_fi ] = true;
-				m_geom.getFaceERep( cur_fi, f_e_rep );
-				for ( const auto& ei : f_e_rep )
-				{
-					if (visited_e[ei] )
-						continue;
-
-					visited_e[ ei ] = true;
-					const auto& nb_faces = e_f_adj_tbl[ ei ];
-					for ( const auto& nb_fi : nb_faces )
-					{
-						if (visited_f[nb_fi] )
-							continue;
-
-						face_q.push( nb_fi );
-					}
-				}
-			}
-		}
-		visited_f.clear();
-		visited_e.clear();
-		visited_f.shrink_to_fit();
-		visited_e.shrink_to_fit();
-		e_f_adj_tbl.clear();
-		e_f_adj_tbl.shrink_to_fit();
-
-		return ncc;
-	} // VoroInfo::compute_conn_cmpnts();
-
-	int VoroInfo::compute_conn_cmpnts( const vector<int>* _subset_faces, int _flood_across_vertex )
-	{
-		int ncc = 0;
-		// construct 
-		// - vert_id-vert_id adjacency table
-		vector< vector<int> > v_v_adj_tbl;
-		v_v_adj_tbl.resize( m_geom.numVts() );
-		vector<bool> visited( m_geom.numVts(), false );
-		vector<int> f_v_rep;
-		vector<int> f_e_rep;
-		if ( _subset_faces )
-		{
-			/*flooding will occur in a subset of vts*/
-			// grab all relevant vts & build v-v-adj
-			set<int> vts_set;
-			for ( const auto& fi : *_subset_faces )
-			{
-				m_geom.getFaceVRep( fi, f_v_rep );
-				vts_set.insert( f_v_rep.begin(), f_v_rep.end() );
-				m_geom.getFaceERep( fi, f_e_rep );
-				// add v-v adjacency
-				for (const auto& ei : f_e_rep )
-				{
-					const auto& e = m_geom.getEdge( ei );
-					v_v_adj_tbl[ e[ 0 ] ].push_back( e[ 1 ] );
-					v_v_adj_tbl[ e[ 1 ] ].push_back( e[ 0 ] );
-				}
-			}
-			// properly set other vts to has-been-visited before flooding
-			// to make them *non-visitable*, 
-			// since our flooding is constrained on a subset of vts
-			for ( int vi = 0; vi < m_geom.numVts(); ++vi )
-			{
-				if ( vts_set.count( vi ) == 0 )
-					visited[ vi ] = true;
-			}
-			vts_set.clear();
-		}
-		else
-		{
-			/* flooding will consider all vts */
-			// build v-v-adj table
-			for ( const auto& e : m_geom.m_edges )
-			{
-				v_v_adj_tbl[ e[ 0 ] ].push_back( e[ 1 ] );
-				v_v_adj_tbl[ e[ 1 ] ].push_back( e[ 0 ] );
-			}
-		}
-
-		ncc = util::findNumConnComponents( v_v_adj_tbl, m_geom.numVts(), visited );
-		///*begin flooding*/
-		//queue<int> vts_q;
-		//for ( int vi = 0; vi < m_vts.size(); ++vi )
-		//{
-		//	if (visited[vi] )
-		//		continue;
-		//	// new component starts here
-		//	ncc++;
-		//	vts_q.push( vi );
-		//	while ( !vts_q.empty() )
-		//	{
-		//		int cur_v = vts_q.front();
-		//		vts_q.pop();
-		//		if (visited[cur_v] )
-		//			continue;
-		//		visited[ cur_v ] = true;
-		//		// add its unvisited neighbors to q
-		//		const auto& nbs = v_v_adj_tbl[ cur_v ];
-		//		for ( const auto& nb : nbs )
-		//		{
-		//			if ( !visited[ nb ] )
-		//				vts_q.push( nb );
-		//		}
-		//	}
-		//}
-
-		return ncc;
 	}
 
 	void VoroInfo::compute_multiplicity_vts()

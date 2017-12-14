@@ -19,7 +19,7 @@ namespace fs = std::experimental::filesystem;
 // 
 // define valid modes here
 enum class ValidMode {
-	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, DETECT_POCKET
+	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, TOPO
 };
 std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2mat", ValidMode::MRC2MAT},
@@ -28,7 +28,7 @@ std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2sof", ValidMode::MRC2SOF},
 	{"r", ValidMode::R},
 	{"t", ValidMode::TREE},
-	{"pocket", ValidMode::DETECT_POCKET}
+	{"topo", ValidMode::TOPO}
 };
 //// flags/args for the program
 //ValidMode mode; // current mode 
@@ -91,8 +91,8 @@ DEFINE_string( sof, "", "the output volume in format .sof the input will be conv
 // cmd options for -md=t
 DEFINE_string( skm, "", "the input file containing graph and edge measures .skMsure. REQUIRED." );
 
-// cmd options for -md=pocket
-DEFINE_string( meshFilePocket, "",
+// cmd options for -md=topo
+DEFINE_string( meshToCheck, "",
 	"The input file representing a mesh with open boundary (e.g. medial axis). REQUIRED."\
 	"We want to detect whether there are any closed components - \"pockets\" on it." );
 
@@ -365,14 +365,14 @@ void main( int _argc, char * _argv[] )
 
 		goto SUCCESS;
 	}
-	else if ( FLAGS_md == "pocket" )
+	else if ( FLAGS_md == "topo" )
 	{
 		// read in mesh
 		cellcomplex cc;
-		auto err = voxelvoro::readMesh( FLAGS_meshFilePocket, cc );
+		auto err = voxelvoro::readMesh( FLAGS_meshToCheck, cc );
 		if ( err != voxelvoro::ImportErrCode::SUCCESS )
 		{
-			cout << "Error: cannot read file: " << FLAGS_meshFilePocket << endl;
+			cout << "Error: cannot read file: " << FLAGS_meshToCheck << endl;
 			goto FAILURE;
 		}
 		// euler char
