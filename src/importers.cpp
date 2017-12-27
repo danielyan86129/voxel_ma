@@ -116,7 +116,7 @@ namespace voxelvoro {
 		}
 		bndry_file.close();
 		t_io.stop();
-		cout << "time(I/O) -> read pts from .node:" << t_io.elapseMilli().count() << " ms" << endl;
+		cout << "time(I/O) -> read pts from .node: " << t_io.elapseMilli().count() << " ms" << endl;
 		if ( v_id != n_bndry_vts - 1 )
 		{
 			cout << "Error: num of points read doesn't match the expected value!" << endl;
@@ -151,6 +151,7 @@ namespace voxelvoro {
 			return ImportErrCode::FAILURE;
 		}
 		cout << "Done: voro info read." << endl;
+		
 		return ImportErrCode::SUCCESS;
 	}
 	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc )

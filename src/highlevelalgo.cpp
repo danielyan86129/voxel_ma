@@ -16,7 +16,7 @@ namespace voxelvoro
 {
 	bool preprocessVoro( VoroInfo & _voro, const shared_ptr<Volume3DScalar>& _vol, bool _need_euler )
 	{
-		timer t_tagging, t_merging;
+		timer t_tagging, t_merging, t_compute_msure;
 
 		std::cout << "Starting preprocessing voro..." << std::endl;
 		t_tagging.start();
@@ -26,6 +26,13 @@ namespace voxelvoro
 			return false;
 		}
 		t_tagging.stop();
+
+		// compute measures for voro elements
+		t_compute_msure.start();
+		//std::cout << "Computing measures ..." << std::endl;
+		_voro.generateMeasure( MeasureForMA::LAMBDA );
+		//std::cout << "Done: computing measures" << std::endl;
+		t_compute_msure.stop();
 
 		eulerchar euler_struct;
 		if ( _need_euler )
@@ -49,8 +56,9 @@ namespace voxelvoro
 			<< _voro.geom().numFaces() << endl;
 		t_merging.stop();
 		
+		//cout << "time -> compute measure: " << t_compute_msure.elapseMilli().count() << " ms" << endl;
 		cout << "time -> VD in/out tagging: " << t_tagging.elapseMilli().count() << " ms" << endl;
-		cout << "time -> IVD-merge: " << t_merging.elapseMilli().count() << " ms" << endl;
+		cout << "time(FULLSTAGE) -> IVD-merge: " << t_merging.elapseMilli().count() << " ms" << endl;
 		if ( _need_euler )
 		{	// check euler numbers after merging identical vts
 			_voro.computeEulerChar( euler_struct );
@@ -285,9 +293,9 @@ namespace voxelvoro
 				}
 			} // local scope for goto to skip
 		END_PLY_BRANCH:
-			cout << "time -> thinning: " << t_thin.elapseMilli().count() << " ms" << endl;
-			cout << "time -> write IVD (I/O): " << t_write_IVD.elapseMilli().count() << " ms" << endl;
-			cout << "time -> write thinned IVD (I/O): " << t_write_thinIVD.elapseMilli().count() << " ms" << endl;
+			cout << "time(THIN) -> thinning: " << t_thin.elapseMilli().count() << " ms" << endl;
+			cout << "time(I/O) -> write IVD: " << t_write_IVD.elapseMilli().count() << " ms" << endl;
+			cout << "time(I/O) -> write thinned IVD: " << t_write_thinIVD.elapseMilli().count() << " ms" << endl;
 		} // else branch: output in .ply format
 		else
 			return ExportErrCode::OUTPUT_NOT_SUPPORTED;

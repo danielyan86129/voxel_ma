@@ -8,6 +8,7 @@
 #include <queue>
 #include <limits>
 #include <iomanip>
+#include <numeric>
 
 #include <TriMesh_algo.h>
 #include <ANN/ANN.h>
@@ -66,20 +67,20 @@ namespace voxelvoro {
 		load_voro_faces( edges, in_face );
 		cout << ".v.face file processed." << endl;
 		t_IO.stop();
-		t_infer_sites.start();
+		//t_infer_sites.start();
 		infer_sites_from_cell_file( in_cells );
-		t_infer_sites.stop();
+		//t_infer_sites.stop();
 		cout << ".v.cell file processed." << endl;
-		cout << "time(I/O) -> read tetgen files:" << t_IO.elapseMilli().count() << " ms" << endl;
-		cout << "time -> infer sites from cell:" << t_infer_sites.elapseMilli().count() << " ms" << endl;
+		cout << "time(I/O) -> read tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
+		//cout << "time -> infer sites from cell: " << t_infer_sites.elapseMilli().count() << " ms" << endl;
 		m_geom.finalize();
 
 		return true;
 	}
 
-	void VoroInfo::setInfo( 
-		const vector<point>& _vts, const vector<ivec2>& _edges, const vector<vector<int>> _faces, 
-		const vector<bool>& _vert_valid_tag, 
+	void VoroInfo::setInfo(
+		const vector<point>& _vts, const vector<ivec2>& _edges, const vector<vector<int>> _faces,
+		const vector<bool>& _vert_valid_tag,
 		const vector<bool>& _is_finite_v, const vector<bool>& _is_finite_e, const vector<bool>& _is_finite_f )
 	{
 		m_geom.clear();
@@ -129,7 +130,7 @@ namespace voxelvoro {
 		kdtree = new ANNkd_tree( data_pts, n_pts, 3 );
 		nn_idx = new ANNidx[ 1 ];
 		dists = new ANNdist[ 1 ];
-		cout << "done: "<<n_pts<<" site positions inserted to kdtree." << endl;
+		cout << "done: " << n_pts << " site positions inserted to kdtree." << endl;
 
 		// 1. find corresponding sites for each face using input list of cell centroids
 		// (right now m_face_sites contain index into this list)
@@ -192,7 +193,7 @@ namespace voxelvoro {
 			m_geom.getFaceVRep( fi, vts_f );
 			int site_i = m_face_sites[ fi ][ 0 ];// just pick the first site
 			auto site_p = m_site_positions[ site_i ];
-			for (auto vi : vts_f )
+			for ( auto vi : vts_f )
 			{
 				auto v_p = m_geom.getVert( vi );
 				auto r = trimesh::dist( site_p, v_p );
@@ -206,9 +207,9 @@ namespace voxelvoro {
 				m_r_per_v[ vi ] = r;
 			}
 		}
-		if (inconst_cnt)
+		if ( inconst_cnt )
 			cout << "Potential bug!! inconsistent radius (at " << inconst_cnt << " voro vts)" << endl;
-		
+
 		cout << "radii estimated." << endl;
 		m_r_valid = true;
 
@@ -333,7 +334,7 @@ namespace voxelvoro {
 	void VoroInfo::getEdges( const vector<int>& _edges_indices, vector<ivec2>& _edges ) const
 	{
 		_edges.reserve( _edges_indices.size() );
-		for (auto it = _edges_indices.begin(); it != _edges_indices.end(); ++it )
+		for ( auto it = _edges_indices.begin(); it != _edges_indices.end(); ++it )
 			_edges.push_back( m_geom.getEdge( *it ) );
 	}
 
@@ -370,7 +371,7 @@ namespace voxelvoro {
 		set<ivec2> total_tri_edges;
 		vector<int> vts_of_f;
 		vector<uTriFace> tri_faces_of_poly;
-		ivec2 tri_edges_of_poly[3];
+		ivec2 tri_edges_of_poly[ 3 ];
 		uTriFace tcpy;
 		for ( size_t fi = 0; fi < m_geom.numFaces(); ++fi )
 		{
@@ -397,8 +398,9 @@ namespace voxelvoro {
 		total_tri_edges.clear();
 	}
 
-	void VoroInfo::extractInsideWithMeasure( MeasureForMA::meassuretype _mssure_tp, 
-		vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris, 
+	// TODO: optimize away redundant copy of msure, v/e/f, etc.
+	void VoroInfo::extractInsideWithMeasure( MeasureForMA::meassuretype _mssure_tp,
+		vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris,
 		vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure ) const
 	{
 		timer t_msure, t_get_inside;
@@ -410,15 +412,36 @@ namespace voxelvoro {
 		getValidEdges( edges_indices );
 		getValidFaces( faces_indices );
 		t_get_inside.stop();
-		std::cout << "inside indices ready." << std::endl;
-		// compute requested measure to those elements
+		//std::cout << "inside indices ready." << std::endl;
+
+		// obtain the requested measure
 		t_msure.start();
-		computeVertexMeasure( _mssure_tp, vts_indices, _vts_msure );
-		//computeEdgesMeasure( _mssure_tp, edges_indices, _edges_msure );
-		computeEdgesMeasure( _vts_msure, edges_indices, _edges_msure );
-		computeFacesMeasure( _mssure_tp, faces_indices, _faces_msure );
+		std::cout << "Computing measures ..." << std::endl;
+		computeVertexMeasure( MeasureForMA::LAMBDA, vts_indices, _vts_msure );
+		computeEdgesMeasure( MeasureForMA::LAMBDA, edges_indices, _edges_msure );
+		computeFacesMeasure( MeasureForMA::LAMBDA, faces_indices, _faces_msure );
+		std::cout << "Done: computing measures" << std::endl;
 		t_msure.stop();
-		std::cout << "measures computed." << std::endl;
+		/*
+		t_msure.start();
+		_vts_msure.clear();
+		for ( auto i : vts_indices )
+			_vts_msure.push_back( m_v_msure[ i ] );
+		_edges_msure.clear();
+		for ( auto i : edges_indices )
+			_edges_msure.push_back( m_e_msure[ i ] );
+		_faces_msure.clear();
+		for ( auto i : faces_indices )
+			_faces_msure.push_back( m_f_msure[ i ] );
+		t_msure.stop();
+		*/
+		std::cout << "measures extracted." << std::endl;
+		auto v_msure_range = std::minmax_element( _vts_msure.begin(), _vts_msure.end() );
+		auto e_msure_range = std::minmax_element( _edges_msure.begin(), _edges_msure.end() );
+		auto f_msure_range = std::minmax_element( _faces_msure.begin(), _faces_msure.end() );
+		std::cout << "V measure: [" << *v_msure_range.first << "," << *v_msure_range.second << "]" << std::endl;
+		std::cout << "E measure: [" << *e_msure_range.first << "," << *e_msure_range.second << "]" << std::endl;
+		std::cout << "F measure: [" << *f_msure_range.first << "," << *f_msure_range.second << "]" << std::endl;
 
 		t_get_inside.restart();
 		// grab the geometry of those elements
@@ -431,8 +454,8 @@ namespace voxelvoro {
 		vector<int> f_vrep;
 		vector<uTriFace> f_tris;
 		vector<float> f_msure_temp;
-		ivec2 tri_edges[3];
-		for (auto fit = faces_indices.begin(); fit != faces_indices.end() ; fit++)
+		ivec2 tri_edges[ 3 ];
+		for ( auto fit = faces_indices.begin(); fit != faces_indices.end(); fit++ )
 		{
 			geom().getFaceVRep( *fit, f_vrep );
 			util::simpleTriangulate( f_vrep, f_tris );
@@ -778,6 +801,22 @@ namespace voxelvoro {
 	//	cout << "-------(times break-down)-------" << endl;
 	//}
 
+	void VoroInfo::generateMeasure( MeasureForMA::meassuretype _msure_type )
+	{
+		m_v_msure.clear();
+		m_e_msure.clear();
+		m_f_msure.clear();
+		vector<int> all_V( geom().numVts() );
+		std::iota( all_V.begin(), all_V.end(), 0 );
+		computeVertexMeasure( MeasureForMA::LAMBDA, all_V, m_v_msure );
+		all_V.resize( geom().numEdges() );
+		std::iota( all_V.begin(), all_V.end(), 0 );
+		computeEdgesMeasure( MeasureForMA::LAMBDA, all_V, m_e_msure );
+		all_V.resize( geom().numFaces() );
+		std::iota( all_V.begin(), all_V.end(), 0 );
+		computeFacesMeasure( MeasureForMA::LAMBDA, all_V, m_f_msure );
+	}
+
 	void VoroInfo::mergeCloseVts( float _eps, bool _only_inside )
 	{
 		/*timers to break down times into each step*/
@@ -837,7 +876,7 @@ namespace voxelvoro {
 				geom().nbVts( cur, nb_vs );
 				for ( auto ni : nb_vs )
 				{
-					if ( !visited[ ni ] 
+					if ( !visited[ ni ]
 						&& trimesh::dist2( geom().getVert( vi ), geom().getVert( ni ) ) <= sq_r )
 					{
 						close_q.push( ni );
@@ -856,7 +895,7 @@ namespace voxelvoro {
 		//	cout << old_to_new_idx[ i ] << " ";
 		//}
 		//cout << endl;
-		
+
 		temp_timer.start();
 		// Save remaining vts to the geometry struct
 		for ( const auto& vi : new_vts_indices )
@@ -893,9 +932,21 @@ namespace voxelvoro {
 			new_r_per_v.shrink_to_fit();
 			cout << "done: updating radius function for vertices." << endl;
 		}
+		// keep only those vert-msure for the new vts
+		vector<float> new_v_msure;
+		for ( auto i : new_vts_indices )
+			new_v_msure.push_back( m_v_msure[ i ] );
+		m_v_msure = std::move( new_v_msure );
+		cout << "done: updating measure for vertices." << endl;
 
 		// Checking edges:
 		// some edges may degenerate to vertex, some may still are valid edges.
+		// We also want to keep only the measures for the valid edges. 
+		// NOTE: We want to make sure the correspondence between each edge and its measure is correct
+		// This could be a concern because later the new-geom is going to be "finalized"
+		// which will rebuild edges list (from the set of edges used by all faces)
+		// HOWEVER, the rebuilt edge list SHOULD be the same as the new edges extracted here
+		vector<float> new_e_msure; // (keep those valid edges' measure)
 		for ( size_t ei = 0; ei < m_geom.numEdges(); ++ei )
 		{
 			if ( _only_inside && !isEdgeValid( ei ) )
@@ -912,8 +963,10 @@ namespace voxelvoro {
 			auto new_e = util::makeEdge( u, v );
 			//cout << "new edge " << new_e << endl;
 			new_edges.insert( new_e );
+			new_e_msure.push_back( m_e_msure[ ei ] ); // save msure for this edge
 		}
-		cout << "done: checking and handling edges degeneracy after merging." << endl;
+		m_e_msure = std::move( new_e_msure );
+		cout << "done: checking and handling edges degeneracy after merging (also keep only valid edges' measure)." << endl;
 
 		// Checking faces:
 		// some faces may degenerate to edges, some may still be valid faces.
@@ -1034,21 +1087,25 @@ namespace voxelvoro {
 		this->recomputeFaceFlags();
 
 		/* update voro-face-related attributes */
-		// update sites: 
+		// per-face sites & measure
 		// here we remove all sites for those faces are marked true in remove_face[]
 		vector<ivec2> facesites_cpy;
+		vector<float> new_f_msure;
 		for ( size_t i = 0; i < remove_face.size(); ++i )
 		{
 			if ( !remove_face[ i ] )
+			{
 				facesites_cpy.push_back( m_face_sites[ i ] );
+				new_f_msure.push_back( m_f_msure[ i ] );
+			}
 		}
-		m_face_sites = facesites_cpy;
-		facesites_cpy.clear(); facesites_cpy.shrink_to_fit();
+		m_face_sites = std::move( facesites_cpy );
+		m_f_msure = std::move( new_f_msure );
 		// update edge / face is-finite-flag
 
 		temp_timer.stop();
 		finalize_t = temp_timer.elapse();
-		cout << "done: updating sites for voro-faces." << endl;
+		cout << "done: updating sites & measure for faces." << endl;
 
 		//cout << "-------times break-down-------" << endl;
 		using namespace std::chrono;
@@ -1056,7 +1113,7 @@ namespace voxelvoro {
 			<< duration_cast<milliseconds>( merge_opt_t ).count() << " ms" << endl;
 		/*cout << "time -> voro finalize: "
 			<< duration_cast<milliseconds>( finalize_t ).count() << " ms" << endl;*/
-		//cout << "-------(times break-down)-------" << endl;
+			//cout << "-------(times break-down)-------" << endl;
 	}
 
 	void VoroInfo::computeEulerChar( eulerchar & _euler_struct, bool _do_prune_first )
@@ -1105,8 +1162,8 @@ namespace voxelvoro {
 		_euler_struct = eulerchar( V, E, F, 0, C, euler );
 	}
 
-	void VoroInfo::computeVertexMeasure( 
-		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _vts_indices, 
+	void VoroInfo::computeVertexMeasure(
+		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _vts_indices,
 		vector<float>& _vts_msure ) const
 	{
 		_vts_msure.clear();
@@ -1118,11 +1175,14 @@ namespace voxelvoro {
 			// of the sites associated with the nb faces, which is 
 			// given by the radius at the vertex
 		case MeasureForMA::LAMBDA:
+		{
+			vector<point> foot_pts;
 			for ( auto it = _vts_indices.begin(); it != _vts_indices.end(); ++it )
 			{
+				// collect all nearby sites
+				foot_pts.clear();
 				v_lmd = 0.0f;
-				v_lmd = 2 * this->getRadii()[ *it ];
-				/*int n_nb_e = geom().cntNbEdgesofVert( *it );
+				int n_nb_e = geom().cntNbEdgesofVert( *it );
 				for ( auto ni = 0; ni < n_nb_e; ++ni )
 				{
 					auto nb_ei = geom().nbEdgeofVert( *it, ni );
@@ -1130,23 +1190,34 @@ namespace voxelvoro {
 					for ( auto nj = 0; nj < n_nb_f; ++nj )
 					{
 						auto nb_fi = geom().nbFaceofEdge( nb_ei, nj );
+						if ( !isFaceValid( nb_fi ) )
+							continue;
 						const auto& sites = getSitesOfFace( nb_fi );
-						float f_lambda = MeasureForMA::lambdaForFace(
-							m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
-						v_lmd = std::max( v_lmd, f_lambda );
+						auto f_lmd = MeasureForMA::lambdaForFace( m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
+						v_lmd = std::max( v_lmd, f_lmd );
+						/*foot_pts.push_back( m_site_positions[ sites[ 0 ] ] );
+						foot_pts.push_back( m_site_positions[ sites[ 1 ] ] );*/
 					}
-				}*/
+				}
+				/*if ( foot_pts.empty() )
+					std::cout << "WARNING: 0 nearby sites obtained for voro v " << *it << std::endl;*/
+				// compute an approximate circumradius of all those sites
+				/*point cent = trimesh::point_center_of_mass( foot_pts );
+				v_lmd = 0.0f;
+				for ( const auto& p : foot_pts )
+					v_lmd = std::max( v_lmd, trimesh::dist( cent, p ) );*/
 				_vts_msure.push_back( v_lmd );
 			}
 			break;
+		}
 		default:
 			v_lmd = 0.0f;
 			break;
 		}
 	}
 
-	void VoroInfo::computeEdgesMeasure( 
-		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _edges_indices, 
+	void VoroInfo::computeEdgesMeasure(
+		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _edges_indices,
 		vector<float>& _edges_msure ) const
 	{
 		_edges_msure.clear();
@@ -1154,48 +1225,42 @@ namespace voxelvoro {
 		switch ( _mssure_tp )
 		{
 		case MeasureForMA::LAMBDA:
-			for (auto it = _edges_indices.begin(); it != _edges_indices.end() ; it++)
-			{
-				// lambda of an edge is the lambda of a neighbor face
-				float f_lambda = 0.0f;
-				if (geom().cntNbFacesofEdge(*it) > 0 )
-				{
-					auto nb_fi = geom().nbFaceofEdge( *it, 0 );
-					const auto& sites = getSitesOfFace( nb_fi );
-					float f_lambda = MeasureForMA::lambdaForFace(
-						m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
-				}
-				_edges_msure.push_back( f_lambda );
-			}
-			break;
-		default:
-			break;
-		}
-	}
-
-	void VoroInfo::computeFacesMeasure( 
-		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _faces_indices, 
-		vector<float>& _faces_msure ) const
-	{
-		_faces_msure.clear();
-		_faces_msure.reserve( _faces_indices.size() );
-		switch ( _mssure_tp )
 		{
-		case MeasureForMA::LAMBDA:
-			for ( auto it = _faces_indices.begin(); it != _faces_indices.end(); it++ )
+			vector<point> foot_pts;
+			float e_lmd = 0.0f;
+			for ( auto it = _edges_indices.begin(); it != _edges_indices.end(); it++ )
 			{
-				// lambda of a face is the lambda of a neighbor face
-				const auto& sites = getSitesOfFace( *it );
-				float f_lambda = MeasureForMA::lambdaForFace(
-					m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
-				_faces_msure.push_back( f_lambda );
+				e_lmd = 0.0f;
+				foot_pts.clear();
+				int n_nb_f = geom().cntNbFacesofEdge( *it );
+				if ( n_nb_f > 0 )
+				{
+					for ( auto j = 0; j < n_nb_f; ++j )
+					{
+						auto nb_fi = geom().nbFaceofEdge( *it, j );
+						if ( !isFaceValid( nb_fi ) )
+							continue;
+						const auto& sites = getSitesOfFace( nb_fi );
+						auto f_lmd = MeasureForMA::lambdaForFace( m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
+						e_lmd = std::max( e_lmd, f_lmd );
+						/*foot_pts.push_back( m_site_positions[ sites[ 0 ] ] );
+						foot_pts.push_back( m_site_positions[ sites[ 1 ] ] );*/
+					}
+				}
+				/*if ( foot_pts.empty() )
+					std::cout << "WARNING: 0 nearby sites obtained for voro edge " << *it << std::endl;
+				auto cent = trimesh::point_center_of_mass( foot_pts );*/
+				/*e_lmd = 0.0f;
+				for ( const auto& p : foot_pts )
+					e_lmd = std::max( e_lmd, trimesh::dist( cent, p ) );*/
+				_edges_msure.push_back( e_lmd );
 			}
 			break;
+		}
 		default:
 			break;
 		}
 	}
-
 	void VoroInfo::computeEdgesMeasure(
 		const vector<float>& _vts_msure, const vector<int>& _edges_indices,
 		vector<float>& _edges_msure ) const
@@ -1206,6 +1271,29 @@ namespace voxelvoro {
 		{
 			auto e = geom().getEdge( _edges_indices[ i ] );
 			_edges_msure.push_back( ( _vts_msure[ e[ 0 ] ] + _vts_msure[ e[ 1 ] ] ) * 0.5f );
+		}
+	}
+
+	void VoroInfo::computeFacesMeasure(
+		MeasureForMA::meassuretype _mssure_tp, const vector<int>& _faces_indices,
+		vector<float>& _faces_msure ) const
+	{
+		_faces_msure.clear();
+		_faces_msure.reserve( _faces_indices.size() );
+		switch ( _mssure_tp )
+		{
+		case MeasureForMA::LAMBDA:
+			for ( auto it = _faces_indices.begin(); it != _faces_indices.end(); it++ )
+			{
+				// lambda of a face is the distance between two sites
+				const auto& sites = getSitesOfFace( *it );
+				float f_lambda = MeasureForMA::lambdaForFace(
+					m_site_positions[ sites[ 0 ] ], m_site_positions[ sites[ 1 ] ] );
+				_faces_msure.push_back( f_lambda );
+			}
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -1243,7 +1331,7 @@ namespace voxelvoro {
 		ofile << "{(* begin: edges *)" << endl;
 		for ( size_t i = 0; i < m_geom.numEdges(); ++i )
 		{
-			if ( !isEdgeValid( i ) || m_geom.refCount(i) > 0 )
+			if ( !isEdgeValid( i ) || m_geom.refCount( i ) > 0 )
 				continue;
 			auto e = m_geom.getEdge( i );
 			ofile << e[ 0 ] + 1 << "," << e[ 1 ] + 1 << ",";
@@ -1288,7 +1376,7 @@ namespace voxelvoro {
 	void VoroInfo::load_voro_vts( ifstream & _in_node )
 	{
 		// read in content all at once and parse numbers using a stringstream
-		_in_node.seekg(0, std::ios::end );
+		_in_node.seekg( 0, std::ios::end );
 		auto len = _in_node.tellg();
 		_in_node.seekg( std::ios::beg );
 		vector<char> buffer( len );
@@ -1378,10 +1466,10 @@ namespace voxelvoro {
 				dir[ 2 ] = atof( token );
 
 				// create an infinite vertex for this infinite edge to refer to
-				auto inf_v = geom().getVert( e[ 0 ] ) + (-dir) * m_bbox.radius()*0.01f;
+				auto inf_v = geom().getVert( e[ 0 ] ) + ( -dir ) * m_bbox.radius()*0.01f;
 				m_geom.appendVert( inf_v );
 				m_is_finite_v.push_back( false );
-				e[ 1 ] = m_geom.numVts()-1;
+				e[ 1 ] = m_geom.numVts() - 1;
 			}
 			else
 			{
@@ -1485,10 +1573,10 @@ namespace voxelvoro {
 		// read num of cells
 		auto token = strtok( &buffer[ 0 ], delim );
 		cell_cnt = atoi( token );
-		
+
 		vector<int> f_vrep;
 		int n_face, f_id;
-		vector<point> cell_centroids(cell_cnt);
+		vector<point> cell_centroids( cell_cnt );
 		for ( auto ci = 0; ci < cell_cnt; ++ci )
 		{
 			token = strtok( nullptr, delim ); // cell-id
@@ -1500,7 +1588,7 @@ namespace voxelvoro {
 			{
 				token = strtok( nullptr, delim ); // face id
 				f_id = atoi( token );
-				if (f_id == -1 )
+				if ( f_id == -1 )
 					continue;
 				geom().getFaceVRep( f_id, f_vrep );
 				vts_cnt += f_vrep.size();
@@ -1604,7 +1692,7 @@ namespace voxelvoro {
 
 		// identify surface components for each vertex
 		m_mult_num_vts.assign( m_geom.numVts(), 1 );
-		
+
 		int num_vts = (int)m_geom.numVts();
 		for ( int vi = 0; vi < num_vts; ++vi )
 		{
@@ -1620,7 +1708,7 @@ namespace voxelvoro {
 			int ncc = 0;
 			for ( const auto& fi : one_ring_faces )
 			{
-				if (f_visited.count(fi) > 0 )
+				if ( f_visited.count( fi ) > 0 )
 					continue;
 				ncc++;
 				flood_queue.push( fi );
@@ -1642,7 +1730,7 @@ namespace voxelvoro {
 							for ( const auto& nb_fi : nb_faces )
 							{
 								// only flood to neighbor face (within current one-ring!)
-								if ( f_visited.count( nb_fi ) == 0 && one_ring_faces.count(nb_fi) > 0 )
+								if ( f_visited.count( nb_fi ) == 0 && one_ring_faces.count( nb_fi ) > 0 )
 								{
 									flood_queue.push( nb_fi );
 								}
@@ -1654,7 +1742,7 @@ namespace voxelvoro {
 
 			// now trace out edge components
 			// this is simply the number of edges that use cur vertex as one of their ends
-			ncc += (ncc == 0 && v_e_refcnt[ vi ] > 0 ? 1 : 0);
+			ncc += ( ncc == 0 && v_e_refcnt[ vi ] > 0 ? 1 : 0 );
 
 			// now we have traced out all components
 			m_mult_num_vts[ vi ] = ncc;
@@ -1691,7 +1779,7 @@ namespace voxelvoro {
 			m_face_valid[ i ] = computeFaceValidity( i );
 			m_geom.getFaceVRep( i, f_vts );
 			m_is_finite_f[ i ] = true;
-			for (auto j : f_vts )
+			for ( auto j : f_vts )
 				if ( !isVertexFinite( j ) )
 				{
 					m_is_finite_f[ i ] = false;

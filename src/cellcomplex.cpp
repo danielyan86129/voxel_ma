@@ -372,6 +372,10 @@ void cellcomplex::finalize()
 		}
 		extract_edges_t.stop();
 
+		// report: are there new edges extracted from face sides, in addition to the original edges?
+		if ( m_edges.size() < edge_index_map.size() )
+			std::cout << "INFO: # face sides about to add as new edges = " << edge_index_map.size() - m_edges.size() << endl;
+
 		// save each edge at its corresponding index in edge-list
 		save_edges_t.start();
 		m_edges.resize( edge_index_map.size() );
@@ -424,7 +428,7 @@ void cellcomplex::finalize()
 		<< init_adj_t.elapseMilli().count() << "ms" << endl;
 	cout << "build adj list: "
 		<< build_adj_t.elapseMilli().count() << "ms" << endl;*/
-	cout << "time -> finalize CC:" << t_total.elapseMilli().count() << " ms" << endl;
+	cout << "time -> finalize CC: " << t_total.elapseMilli().count() << " ms" << endl;
 }
 
 void cellcomplex::eulerChar( eulerchar& _ec ) const

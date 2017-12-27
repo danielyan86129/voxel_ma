@@ -107,6 +107,9 @@ namespace voxelvoro
 			vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris,
 			vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure ) const;
 		//
+		// 
+		void generateMeasure( MeasureForMA::meassuretype _msure_type );
+		//
 		// return the geometry of this voro diagram
 		inline const cellcomplex& geom() const
 		{
@@ -186,6 +189,10 @@ namespace voxelvoro
 		*/
 		// geometry stored in a cell-complex
 		cellcomplex m_geom;
+		// measure associated to each vert / edge / face
+		vector<float> m_v_msure;
+		vector<float> m_e_msure;
+		vector<float> m_f_msure;
 		// validity tag of each vert / edge/ face
 		vector<bool> m_vts_valid;
 		vector<bool> m_edge_valid;
