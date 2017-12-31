@@ -49,7 +49,7 @@ namespace voxelvoro {
 		ifstream in_node( string( _file_basename ) + ".v.node" );
 		ifstream in_edge( string( _file_basename ) + ".v.edge" );
 		ifstream in_face( string( _file_basename ) + ".v.face" );
-		ifstream in_cells( string( _file_basename ) + ".v.cell" );
+		//ifstream in_cells( string( _file_basename ) + ".v.cell" );
 		if ( !in_node || !in_edge || !in_face )
 		{
 			cout << "Error: some input files (.v.node/edge/face/cell) are missing." << endl;
@@ -67,10 +67,18 @@ namespace voxelvoro {
 		load_voro_faces( edges, in_face );
 		cout << ".v.face file processed." << endl;
 		t_IO.stop();
+		/* 
+		** uncomment the following if correspondence between voro cell index and site index is unknown 
+		*/
 		//t_infer_sites.start();
-		infer_sites_from_cell_file( in_cells );
+		//infer_sites_from_cell_file( in_cells );
 		//t_infer_sites.stop();
-		cout << ".v.cell file processed." << endl;
+		//cout << ".v.cell file processed." << endl;
+		/*
+		** The correspondence is known at least for voro output from tetgen-1.5 (i.g. cell i is dual to site i)
+		** so we don't need cell information to compute site-related info
+		*/
+		computeInfoRelatedtoSites();
 		cout << "time(I/O) -> read tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
 		//cout << "time -> infer sites from cell: " << t_infer_sites.elapseMilli().count() << " ms" << endl;
 		m_geom.finalize();
@@ -109,6 +117,43 @@ namespace voxelvoro {
 		m_site_positions = _sites_pos;
 	}
 
+	void VoroInfo::computeInfoRelatedtoSites()
+	{
+		m_face_sites_valid = true;
+
+		// 2: estimate radius function 
+		// from the sites indices of each face derive the sites for each vertex
+		// for each face f, pick a random site s, then,
+		//     for each v of f, compute dist(v, s), assign that to r-of-v
+		m_r_per_v.resize( m_geom.numVts(), 0.0f );
+		vector<int> vts_f;
+		float eps = getInsidePartSize()*1.0e-5f;
+		int inconst_cnt = 0;
+		for ( int fi = 0; fi < m_face_sites.size(); ++fi )
+		{
+			m_geom.getFaceVRep( fi, vts_f );
+			int site_i = m_face_sites[ fi ][ 0 ];// just pick the first site
+			auto site_p = m_site_positions[ site_i ];
+			for ( auto vi : vts_f )
+			{
+				auto v_p = m_geom.getVert( vi );
+				auto r = trimesh::dist( site_p, v_p );
+				auto old_r = m_r_per_v[ vi ];
+				if ( old_r > 0.0f && !util::is_equal( r, old_r, eps ) )
+				{
+					/*cout << "Potential bug!! inconsistent radius. (for voro vert: " << vi << ", "
+					<< "old_r: " << old_r << ", new_r: " << r << endl;*/
+					inconst_cnt++;
+				}
+				m_r_per_v[ vi ] = r;
+			}
+		}
+		if ( inconst_cnt )
+			cout << "Potential bug!! inconsistent radius (at " << inconst_cnt << " voro vts)" << endl;
+
+		cout << "radii estimated." << endl;
+		m_r_valid = true;
+	}
 	void VoroInfo::computeInfoRelatedtoSites( const vector<point>& _cell_cents )
 	{
 		int n_pts = m_site_positions.size();

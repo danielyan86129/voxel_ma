@@ -58,6 +58,10 @@ namespace voxelvoro
 		// set closest sites to each voro vertex, 
 		// and the radius function over the voro-diagram
 		void setSitesPositions( const vector<point>& _sites_pos );
+		// this version assumes sites for each face is correctly associated and only computes vert-radius 
+		void computeInfoRelatedtoSites();
+		// this version takes in the centroid for each cell and does 1-nn to associate sites with each face
+		// then it also computes vert-radius
 		void computeInfoRelatedtoSites( const vector<point>& _cell_cents );
 		//
 		// return positions of all sites
