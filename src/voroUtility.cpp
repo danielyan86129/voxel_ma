@@ -222,7 +222,9 @@ void main( int _argc, char * _argv[] )
 			voxelvoro::VoroInfo voro;
 			if (
 				voxelvoro::readVoroInfo( basename, voro,
-					FLAGS_needEuler, FLAGS_siteFile == "" ? nullptr : FLAGS_siteFile.c_str() )
+					FLAGS_needEuler, 
+					FLAGS_siteFile == "" ? nullptr : FLAGS_siteFile.c_str(), 
+					vol/*nullptr*/ )
 				== voxelvoro::ImportErrCode::SUCCESS )
 				cout << "Done: voro info read." << endl;
 			else

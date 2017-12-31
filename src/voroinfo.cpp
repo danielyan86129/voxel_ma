@@ -42,7 +42,7 @@ namespace voxelvoro {
 	{
 	}
 
-	bool VoroInfo::loadFromTetgenFiles( const char * _file_basename )
+	bool VoroInfo::loadFromTetgenFiles( const char * _file_basename, shared_ptr<Volume3DScalar> _vol )
 	{
 		timer t_IO, t_infer_sites;
 		// at least: .v.node, .v.edge, .v.face need to be available
@@ -58,14 +58,20 @@ namespace voxelvoro {
 
 		invalidate_geometric_states();
 
+		unordered_map<int, int>* old_new_v_map = _vol ? new unordered_map<int, int>() : nullptr;
+		unordered_map<int, int>* old_new_e_map = _vol ? new unordered_map<int, int>() : nullptr;
 		t_IO.start();
-		load_voro_vts( in_node );
+		load_voro_vts( in_node, _vol, old_new_v_map );
 		cout << ".v.node file processed." << endl;
 		vector<ivec2> edges;
-		load_voro_edges( in_edge, edges );
+		load_voro_edges( in_edge, _vol, old_new_v_map, old_new_e_map );
 		cout << ".v.edge file processed." << endl;
-		load_voro_faces( edges, in_face );
+		load_voro_faces( in_face, _vol, old_new_e_map );
 		cout << ".v.face file processed." << endl;
+		if (old_new_v_map )
+			delete old_new_v_map;
+		if (old_new_e_map )
+			delete old_new_e_map;
 		t_IO.stop();
 		/* 
 		** uncomment the following if correspondence between voro cell index and site index is unknown 
@@ -78,6 +84,7 @@ namespace voxelvoro {
 		** The correspondence is known at least for voro output from tetgen-1.5 (i.g. cell i is dual to site i)
 		** so we don't need cell information to compute site-related info
 		*/
+		cout << "computing info related to sites..." << endl;
 		computeInfoRelatedtoSites();
 		cout << "time(I/O) -> read tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
 		//cout << "time -> infer sites from cell: " << t_infer_sites.elapseMilli().count() << " ms" << endl;
@@ -157,7 +164,7 @@ namespace voxelvoro {
 	void VoroInfo::computeInfoRelatedtoSites( const vector<point>& _cell_cents )
 	{
 		int n_pts = m_site_positions.size();
-		float sq_range = m_bbox.radius()*m_bbox.radius();
+		float sq_range = m_bbox_for_inside.radius()*m_bbox_for_inside.radius();
 		ANNpointArray data_pts;
 		ANNpoint query_p;
 		ANNdistArray dists;
@@ -279,6 +286,13 @@ namespace voxelvoro {
 		return m_r_per_v;
 	}
 
+	bool VoroInfo::tagVert( const point& _p, const shared_ptr<Volume3DScalar>& _vol ) const
+	{
+		ivec3 vox; // the voxel containing a given 3d point
+		SpaceConverter::fromModelToVox( _p, vox, /*_vol->getModeltoVoxMat()*/trimesh::xform::identity() );
+		return SpaceConverter::voxTaggedAsInside( vox, _vol );
+	}
+
 	bool VoroInfo::tagVtsUsingUniformVol( const shared_ptr<Volume3DScalar>& _vol )
 	{
 		m_vts_valid.resize( m_geom.numVts(), false );
@@ -305,13 +319,13 @@ namespace voxelvoro {
 		}
 
 		// update bbox
-		m_bbox.clear();
+		m_bbox_for_inside.clear();
 		for ( size_t i = 0; i < m_geom.numVts(); ++i )
 		{
 			if ( isVertexValid( i ) )
 			{
 				auto& pt = m_geom.getVert( i );
-				m_bbox += pt;
+				m_bbox_for_inside += pt;
 			}
 		}
 
@@ -320,7 +334,7 @@ namespace voxelvoro {
 
 	float VoroInfo::getInsidePartSize() const
 	{
-		return m_bbox.size().max();
+		return m_bbox_for_inside.size().max();
 	}
 
 	void VoroInfo::getValidVts( vector<int>& _vts_indices ) const
@@ -1418,7 +1432,9 @@ namespace voxelvoro {
 		m_face_sites_valid = false;
 	}
 
-	void VoroInfo::load_voro_vts( ifstream & _in_node )
+	void VoroInfo::load_voro_vts( ifstream & _in_node, 
+		shared_ptr<Volume3DScalar> _vol, 
+		unordered_map<int, int>* _old_new_v_map )
 	{
 		// read in content all at once and parse numbers using a stringstream
 		_in_node.seekg( 0, std::ios::end );
@@ -1432,9 +1448,9 @@ namespace voxelvoro {
 		int n_vts, dump_int;
 		int nchar_read = 0, offset = 0;
 		auto delim = " \n\t";
+
 		auto token = strtok( &buffer[ 0 ], delim );
 		n_vts = atoi( token );
-		m_is_finite_v.resize( n_vts );
 		// skip 3 dump ints
 		token = strtok( NULL, delim );
 		token = strtok( NULL, delim );
@@ -1442,7 +1458,7 @@ namespace voxelvoro {
 
 		point v;
 		int vid;
-		m_bbox.clear();
+		m_bbox_for_inside.clear();
 		for ( size_t i = 0; i < n_vts; ++i )
 		{
 			// skip the node id
@@ -1457,15 +1473,24 @@ namespace voxelvoro {
 			token = strtok( NULL, delim );
 			v[ 2 ] = atof( token );
 
+			if ( _vol && this->tagVert( v, _vol ) == false )
+				continue;
+			if ( _vol )
+				( *_old_new_v_map )[ i ] = m_geom.numVts();
+
 			m_geom.appendVert( v );
-			m_is_finite_v[ i ] = true;
-			m_bbox += v;
+			m_is_finite_v.push_back( true );
+			m_bbox_for_inside += v;
 		}
 
-		buffer.clear();
+		buffer.clear(); 
+		buffer.shrink_to_fit();
 	}
 
-	void VoroInfo::load_voro_edges( ifstream & _in_edge, vector<ivec2>& _edges )
+	void VoroInfo::load_voro_edges( ifstream& _in_edge,
+		shared_ptr<Volume3DScalar> _vol,
+		const unordered_map<int, int>* const _old_new_v_map,
+		unordered_map<int, int>* _old_new_e_map )
 	{
 		m_geom.clearEdgeList();
 		m_is_finite_e.clear();
@@ -1498,6 +1523,7 @@ namespace voxelvoro {
 			e[ 0 ] = atoi( token );
 			token = strtok( NULL, delim );
 			e[ 1 ] = atoi( token );
+
 			if ( e[ 1 ] == -1 ) // edge is infinite. 
 			{
 				// refer to the infinite vertex by the infinite end
@@ -1509,9 +1535,21 @@ namespace voxelvoro {
 				dir[ 1 ] = atof( token );
 				token = strtok( NULL, delim );
 				dir[ 2 ] = atof( token );
+			}
 
+			if ( _vol )
+			{
+				if ( !_old_new_v_map->count( e[ 0 ] ) || !_old_new_v_map->count( e[ 1 ] ) )
+					continue;
+				e[ 0 ] = _old_new_v_map->find( e[ 0 ] )->second;
+				e[ 1 ] = _old_new_v_map->find( e[ 1 ] )->second;
+				( *_old_new_e_map )[ eid ] = m_geom.numEdges();
+			}
+
+			if ( e[ 1 ] == -1 )
+			{
 				// create an infinite vertex for this infinite edge to refer to
-				auto inf_v = geom().getVert( e[ 0 ] ) + ( -dir ) * m_bbox.radius()*0.01f;
+				point inf_v = geom().getVert( e[ 0 ] ) + ( -dir ) * m_bbox_for_inside.radius()*0.01f;
 				m_geom.appendVert( inf_v );
 				m_is_finite_v.push_back( false );
 				e[ 1 ] = m_geom.numVts() - 1;
@@ -1522,11 +1560,15 @@ namespace voxelvoro {
 			}
 			m_geom.appendEdge( e );
 		}
+		m_is_finite_e.shrink_to_fit();
 
-		buffer.clear();
+		buffer.clear(); 
+		buffer.shrink_to_fit();
 	}
 
-	void VoroInfo::load_voro_faces( const vector<ivec2>& _edges, ifstream & _in_face )
+	void VoroInfo::load_voro_faces( ifstream& _in_face,
+		shared_ptr<Volume3DScalar> _vol,
+		const unordered_map<int, int>* const _old_new_e_map )
 	{
 		m_geom.clearFaceList();
 		m_face_sites.clear();
@@ -1554,9 +1596,10 @@ namespace voxelvoro {
 		vector<int> f_erep;
 		int fid, s1, s2, nsides, eid;
 		vector<int> f_of_vts;
-		auto& all_edges = m_geom.m_edges;
 		for ( size_t i = 0; i < n_face; ++i )
 		{
+			if ( i == 505 )
+				int stop = 1;
 			// skip face id
 			token = strtok( NULL, delim );
 			// read the two sites for this face
@@ -1567,16 +1610,29 @@ namespace voxelvoro {
 			// how many sides does this face have?
 			token = strtok( NULL, delim );
 			nsides = atoi( token );
-			f_erep.resize( nsides );
 
 			// read in nsides edges indices for this face
+			f_erep.clear();
 			for ( size_t j = 0; j < nsides; ++j )
 			{
 				token = strtok( NULL, delim );
 				eid = atoi( token );
-				f_erep[ j ] = eid;
+				f_erep.push_back( eid );
 			}
-			// create a new edge for the infinite edge of this face
+			
+			// if vol is given, use it to do prune test
+			if ( _vol )
+				for ( size_t j = 0; j < nsides; ++j )
+				{
+					eid = f_erep[ j ];
+					if ( !_old_new_e_map->count( eid ) )
+						goto NEXT_FACE;
+					else
+						eid = _old_new_e_map->find( eid )->second;
+					f_erep[ j ] = eid;
+				}
+			
+			// may need to create a new edge for the infinite edge of this face
 			if ( f_erep[ f_erep.size() - 1 ] == -1 )
 			{
 				// grab adjacent 2 half-infinite edges to create this new edge
@@ -1592,17 +1648,23 @@ namespace voxelvoro {
 			{
 				m_is_finite_f.push_back( true );
 			}
+
 			f_of_vts.resize( nsides );
-			trace_face( f_erep, all_edges, f_of_vts );
+			trace_face( f_erep, m_geom.m_edges, f_of_vts );
 
 			// add this face to geometry
 			m_geom.appendFace( f_of_vts, f_erep );
 			// save two sites for this face
 			m_face_sites.push_back( ivec2( s1, s2 ) );
+
+		NEXT_FACE: // label used to quickly skip processing of cur face
+			;
 		}
 
 		m_face_sites.shrink_to_fit();
-		buffer.clear(); buffer.shrink_to_fit();
+		m_is_finite_f.shrink_to_fit();
+		buffer.clear(); 
+		buffer.shrink_to_fit();
 	} // VoroInfo::load_voro_faces()
 
 	void VoroInfo::infer_sites_from_cell_file( ifstream & _in_cells )

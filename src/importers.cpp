@@ -127,7 +127,9 @@ namespace voxelvoro {
 	}
 
 	ImportErrCode voxelvoro::readVoroInfo( const char * _basename, VoroInfo& _voro, 
-		bool _need_euler, const char* _sites_pos_file /*= nullptr*/ )
+		bool _need_euler, 
+		const char* _sites_pos_file /*= nullptr*/,
+		shared_ptr<Volume3DScalar> _vol /*= nullptr*/ )
 	{
 		cout << "Reading voro info from tetgen files... " << endl;
 		if ( !_sites_pos_file )
@@ -145,7 +147,7 @@ namespace voxelvoro {
 		cout << "Done: " << sites_pos.size() << " sites positions read. " << endl;
 		// set closest sites position to voro vertices
 		_voro.setSitesPositions( sites_pos );
-		if ( _voro.loadFromTetgenFiles( _basename ) != true )
+		if ( _voro.loadFromTetgenFiles( _basename, _vol ) != true )
 		{
 			cout << "Error: couldn't load voro info from tetgen files." << endl;
 			return ImportErrCode::FAILURE;

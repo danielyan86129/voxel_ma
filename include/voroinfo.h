@@ -5,7 +5,7 @@
 #include <memory>
 #include <fstream>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 //#include <volume.h> // Tao's volume
 #include "Volume3DScalar.h"
@@ -23,7 +23,7 @@ namespace voxelvoro
 	using std::iostream;
 	using std::ifstream;
 	using std::string;
-	using std::map;
+	using std::unordered_map;
 
 	enum class VoroRetCode
 	{
@@ -44,7 +44,7 @@ namespace voxelvoro
 	public:
 		//
 		// load in voro info from related tetgen files with the given base name
-		bool loadFromTetgenFiles( const char* _file_basename );
+		bool loadFromTetgenFiles( const char* _file_basename, shared_ptr<Volume3DScalar> _vol= nullptr );
 		//
 		// init from given information
 		void setInfo(
@@ -76,6 +76,9 @@ namespace voxelvoro
 		//
 		// return the contributing sites of a face
 		ivec2 getSitesOfFace( int _fi ) const;
+		//
+		// tag given vertex position using the volume
+		bool tagVert( const point& _p, const shared_ptr<Volume3DScalar>& _vol ) const;
 		//
 		// tags each vert according to the voxel value of the given volume
 		bool tagVtsUsingUniformVol( const shared_ptr<Volume3DScalar>& _vol );
@@ -176,9 +179,16 @@ namespace voxelvoro
 		void invalidate_geometric_states();
 		//
 		// These only load in finite elements (i.e. finite edges, faces)
-		void load_voro_vts( ifstream& _in_node );
-		void load_voro_edges( ifstream& _in_edge, vector<ivec2>& _edges );
-		void load_voro_faces( const vector<ivec2> &_edges, ifstream& _in_face );
+		void load_voro_vts( ifstream& _in_node, 
+			shared_ptr<Volume3DScalar> _vol = nullptr,
+			unordered_map<int, int>* _old_new_v_map = nullptr );
+		void load_voro_edges( ifstream& _in_edge, 
+			shared_ptr<Volume3DScalar> _vol = nullptr,
+			const unordered_map<int, int>* const _old_new_v_map = nullptr,
+			unordered_map<int, int>* _old_new_e_map = nullptr );
+		void load_voro_faces( ifstream& _in_face,
+			shared_ptr<Volume3DScalar> _vol = nullptr,
+			const unordered_map<int, int>* const _old_new_e_map = nullptr );
 		void infer_sites_from_cell_file( ifstream& _in_cells );
 		//
 		// trace a face boundary (a seq of edges) into a seq of vertices
@@ -217,7 +227,7 @@ namespace voxelvoro
 		// the radius function for the vertices
 		vector<float> m_r_per_v;
 		// the bbox of the finite part of the voro-diagram
-		trimesh::box m_bbox;
+		trimesh::box m_bbox_for_inside;
 	};
 } // namespace voxelvoro
 
