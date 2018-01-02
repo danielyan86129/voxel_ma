@@ -31,6 +31,17 @@ struct cellcomplex
 	cellcomplex(const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces);
 
 	~cellcomplex();
+
+	/*
+	** interfaces for making query
+	*/
+	inline bool isFinalized() const;
+
+	//
+	// info will be computed if not present upon request 
+	// return true if computation takes place, false if no computation needs to be done
+	bool needVVAdjacency();
+
 	//
 	// compute connected components based on face adjacency, i.e.
 	// only consider two faces sharing an edge as connected
@@ -236,6 +247,8 @@ private:
 	/// adjacency management related helpers. 
 	/// Implementation details likely to change depending on the actual layout
 	// initialize adjacency info and get ready for building the actual adjacency
+	void init_V_E_adjacency();
+	void init_E_F_adjacency();
 	void init_adjacency();
 	// add a neighbor edge to the vert's adj. info list
 	void add_nb_edge( int _vi, int _ei );
@@ -266,6 +279,9 @@ private:
 	/*
 	** private data members
 	*/
+	/** states **/
+	// is cc finalized
+	bool m_is_finalized;
 	// does this complex have infinite elements?
 	bool m_has_infinite_v;
 	bool m_has_infinite_e;

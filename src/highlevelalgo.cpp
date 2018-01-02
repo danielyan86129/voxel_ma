@@ -18,14 +18,16 @@ namespace voxelvoro
 	{
 		timer t_tagging, t_merging, t_compute_msure;
 
-		std::cout << "Starting preprocessing voro..." << std::endl;
-		t_tagging.start();
-		if ( !_voro.tagVtsUsingUniformVol( _vol ) )
+		if ( !_voro.onlyHasInside() )
 		{
-			cout << "Error: couldn't tag voro vts." << endl;
-			return false;
+			t_tagging.start();
+			if ( !_voro.tagVtsUsingUniformVol( _vol ) )
+			{
+				cout << "Error: couldn't tag voro vts." << endl;
+				return false;
+			}
+			t_tagging.stop();
 		}
-		t_tagging.stop();
 
 		// compute measures for voro elements
 		t_compute_msure.start();
@@ -65,7 +67,6 @@ namespace voxelvoro
 			euler_struct.logToConsole(
 				( string( "after merging vts within " ) + std::to_string( eps ) ).c_str() );
 		}
-		std::cout << "Done preprocessing voro." << std::endl;
 		return true;
 	}
 	
@@ -153,12 +154,6 @@ namespace voxelvoro
 		double _tt/*thinning threshold*/ )
 	{
 		timer t_thin, t_write_IVD, t_write_thinIVD;
-
-		if ( !preprocessVoro(_voro, _vol, _need_euler) )
-		{
-			cout << "Error processing voro!" << endl;
-			return ExportErrCode::FAILURE;
-		}
 
 		/*if ( _collapse_degenerate_edges )
 		{

@@ -1,4 +1,8 @@
 #include "cellcomplex.h"
+inline bool cellcomplex::isFinalized() const
+{
+	return m_is_finalized;
+}
 inline void cellcomplex::nbVts( unsigned _vi, vector<int>& _nbs ) const
 {
 	auto n_nbs = cntNbEdgesofVert( _vi );

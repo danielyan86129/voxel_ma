@@ -96,6 +96,8 @@ DEFINE_string( meshToCheck, "",
 	"The input file representing a mesh with open boundary (e.g. medial axis). REQUIRED."\
 	"We want to detect whether there are any closed components - \"pockets\" on it." );
 
+// cmd options for reading just IVD (or the entire VD)
+DEFINE_bool( loadIVD, true, "load only IVD from tetgen voro output. OPTIONAL." );
 
 void printUsage()
 {
@@ -224,7 +226,7 @@ void main( int _argc, char * _argv[] )
 				voxelvoro::readVoroInfo( basename, voro,
 					FLAGS_needEuler, 
 					FLAGS_siteFile == "" ? nullptr : FLAGS_siteFile.c_str(), 
-					vol/*nullptr*/ )
+					FLAGS_loadIVD ? vol : nullptr )
 				== voxelvoro::ImportErrCode::SUCCESS )
 				cout << "Done: voro info read." << endl;
 			else
@@ -232,6 +234,14 @@ void main( int _argc, char * _argv[] )
 				cout << "Error: couldn't read voro info." << endl;
 				goto FAILURE;
 			}
+
+			cout << "Preprocessing voro... " << endl;
+			if ( !voxelvoro::preprocessVoro( voro, vol, FLAGS_needEuler ) )
+			{
+				cout << "Error processing voro!" << endl;
+				goto FAILURE;
+			}
+			cout << "Done: voro preprocessed." << endl;
 
 			cout << "Writing inside voro to mesh file ..." << endl;
 			auto voromesh_file = string( _argv[ cur_arg_idx + 2 ] );

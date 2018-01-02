@@ -11,6 +11,7 @@ using std::queue;
 cellcomplex::cellcomplex()
 {
 	m_has_infinite_v = m_has_infinite_e = false;
+	m_is_finalized = false;
 }
 
 cellcomplex::cellcomplex( const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces )
@@ -27,6 +28,21 @@ cellcomplex::cellcomplex( const vector<point>& _vts, const vector<ivec2>& _edges
 cellcomplex::~cellcomplex()
 {
 
+}
+
+bool cellcomplex::needVVAdjacency()
+{
+	if ( m_nb_edges_for_v.size() == numVts() )
+		return false;
+	// build v-v-adjacency
+	init_V_E_adjacency();
+	for ( size_t ei = 0; ei < numEdges(); ++ei )
+	{
+		const auto& e = getEdge( ei );
+		add_nb_edge( e[ 0 ], ei );
+		add_nb_edge( e[ 1 ], ei );
+	}
+	return true;
 }
 
 int cellcomplex::compute_conn_cmpnts( const vector<int>* _subset_faces ) const
@@ -141,11 +157,10 @@ int cellcomplex::compute_conn_cmpnts( const vector<int>* _subset_faces, int over
 		{
 			ccg.getFaceVRep( fi, f_v_rep );
 			vts_set.insert( f_v_rep.begin(), f_v_rep.end() );
-			ccg.getFaceERep( fi, f_e_rep );
 			// add v-v adjacency
-			for ( const auto& ei : f_e_rep )
+			for ( auto j = 0; j < f_v_rep.size(); ++j )
 			{
-				const auto& e = ccg.getEdge( ei );
+				auto e = util::makeEdge( f_v_rep[ j ], f_v_rep[ ( j + 1 ) % f_v_rep.size() ] );
 				v_v_adj_tbl[ e[ 0 ] ].push_back( e[ 1 ] );
 				v_v_adj_tbl[ e[ 1 ] ].push_back( e[ 0 ] );
 			}
@@ -285,10 +300,18 @@ vector<int> cellcomplex::refCntPerEdge() const
 	return ref_cnt;
 }
 
-void cellcomplex::init_adjacency()
+void cellcomplex::init_V_E_adjacency()
 {
 	m_nb_edges_for_v.assign( m_vts.size(), vector<int>() );
+}
+void cellcomplex::init_E_F_adjacency()
+{
 	m_nb_faces_for_e.assign( m_edges.size(), vector<int>() );
+}
+void cellcomplex::init_adjacency()
+{
+	init_V_E_adjacency();
+	init_E_F_adjacency();
 }
 
 void cellcomplex::add_nb_edge( int _vi, int _ei )
@@ -429,6 +452,7 @@ void cellcomplex::finalize()
 	cout << "build adj list: "
 		<< build_adj_t.elapseMilli().count() << "ms" << endl;*/
 	cout << "time -> finalize CC: " << t_total.elapseMilli().count() << " ms" << endl;
+	m_is_finalized = true;
 }
 
 void cellcomplex::eulerChar( eulerchar& _ec ) const

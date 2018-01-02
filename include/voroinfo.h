@@ -114,10 +114,15 @@ namespace voxelvoro
 			vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris,
 			vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure ) const;
 		//
-		// 
-		void generateMeasure( MeasureForMA::meassuretype _msure_type );
+		// generate measures for elements of this voro internally
+		// return true if successful, false otherwise.
+		bool generateMeasure( MeasureForMA::meassuretype _msure_type );
 		//
 		// return the geometry of this voro diagram
+		inline cellcomplex& geom()
+		{
+			return m_geom;
+		}
 		inline const cellcomplex& geom() const
 		{
 			return m_geom;
@@ -166,6 +171,8 @@ namespace voxelvoro
 		inline bool isVertexFinite( int _vi ) const;
 		inline bool isEdgeFinite( int _ei ) const;
 		inline bool isFaceFinite( int _fi ) const;
+		inline bool onlyHasInside() const;
+		inline bool isMsureReady() const;
 
 		//
 		// output the complex to a Mathematica-readable file
@@ -177,6 +184,9 @@ namespace voxelvoro
 		// 
 		// invalidate geometry related states
 		void invalidate_geometric_states();
+		//
+		// change state of whether this voro is only-inside or not
+		void set_only_inside( bool yesno );
 		//
 		// These only load in finite elements (i.e. finite edges, faces)
 		void load_voro_vts( ifstream& _in_node, 
@@ -222,12 +232,14 @@ namespace voxelvoro
 		// the contributing sites (2) for each face
 		vector<ivec2> m_face_sites;
 		vector<point> m_site_positions;
-		bool m_r_valid;// is radius function ready?
-		bool m_face_sites_valid; // is sites for each face ready?
 		// the radius function for the vertices
 		vector<float> m_r_per_v;
 		// the bbox of the finite part of the voro-diagram
-		trimesh::box m_bbox_for_inside;
+		trimesh::box m_bbox;
+		/* states */
+		bool m_r_valid;// is radius function ready?
+		bool m_face_sites_valid; // is sites for each face ready?
+		int m_only_inside; // is there only inside part left in this voro? -1: invalid, 0: false, 1: true.
 	};
 } // namespace voxelvoro
 

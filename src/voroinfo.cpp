@@ -73,6 +73,9 @@ namespace voxelvoro {
 		if (old_new_e_map )
 			delete old_new_e_map;
 		t_IO.stop();
+		
+		if ( _vol )
+			set_only_inside( true );
 		/* 
 		** uncomment the following if correspondence between voro cell index and site index is unknown 
 		*/
@@ -88,7 +91,14 @@ namespace voxelvoro {
 		computeInfoRelatedtoSites();
 		cout << "time(I/O) -> read tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
 		//cout << "time -> infer sites from cell: " << t_infer_sites.elapseMilli().count() << " ms" << endl;
-		m_geom.finalize();
+		
+		/* TODO: make sure this always works
+		** Here we optimize away this finalize(), as it is redundant: 
+		** for now we are sure the operations entail will only use basic geometry info
+		** mostly, this voro will be simplified by merging operation, so most info 
+		** computed by finalize() is gone anyway
+		*/ 
+		//m_geom.finalize();
 
 		return true;
 	}
@@ -164,7 +174,7 @@ namespace voxelvoro {
 	void VoroInfo::computeInfoRelatedtoSites( const vector<point>& _cell_cents )
 	{
 		int n_pts = m_site_positions.size();
-		float sq_range = m_bbox_for_inside.radius()*m_bbox_for_inside.radius();
+		float sq_range = m_bbox.radius()*m_bbox.radius();
 		ANNpointArray data_pts;
 		ANNpoint query_p;
 		ANNdistArray dists;
@@ -319,13 +329,13 @@ namespace voxelvoro {
 		}
 
 		// update bbox
-		m_bbox_for_inside.clear();
+		m_bbox.clear();
 		for ( size_t i = 0; i < m_geom.numVts(); ++i )
 		{
 			if ( isVertexValid( i ) )
 			{
 				auto& pt = m_geom.getVert( i );
-				m_bbox_for_inside += pt;
+				m_bbox += pt;
 			}
 		}
 
@@ -334,7 +344,7 @@ namespace voxelvoro {
 
 	float VoroInfo::getInsidePartSize() const
 	{
-		return m_bbox_for_inside.size().max();
+		return m_bbox.size().max();
 	}
 
 	void VoroInfo::getValidVts( vector<int>& _vts_indices ) const
@@ -860,8 +870,10 @@ namespace voxelvoro {
 	//	cout << "-------(times break-down)-------" << endl;
 	//}
 
-	void VoroInfo::generateMeasure( MeasureForMA::meassuretype _msure_type )
+	bool VoroInfo::generateMeasure( MeasureForMA::meassuretype _msure_type )
 	{
+		if ( !geom().isFinalized() )
+			return false;
 		m_v_msure.clear();
 		m_e_msure.clear();
 		m_f_msure.clear();
@@ -874,6 +886,8 @@ namespace voxelvoro {
 		all_V.resize( geom().numFaces() );
 		std::iota( all_V.begin(), all_V.end(), 0 );
 		computeFacesMeasure( MeasureForMA::LAMBDA, all_V, m_f_msure );
+
+		return true;
 	}
 
 	void VoroInfo::mergeCloseVts( float _eps, bool _only_inside )
@@ -923,6 +937,7 @@ namespace voxelvoro {
 			new_vts_indices.push_back( vi );
 
 			// merge all nbs that are close to vi
+			geom().needVVAdjacency();
 			close_q.push( vi );
 			visited[ vi ] = true;
 			old_to_new_idx[ vi ] = new_vts_indices.size() - 1;
@@ -964,20 +979,23 @@ namespace voxelvoro {
 		cout << "done: saving remaining vertices (after merging) into geometry struct." << endl;
 
 		// update validity for each new vertex
-		vector<bool> new_v_valid_tag;
-		vector<bool> new_v_finite_tag;
-		for ( const auto& vi : new_vts_indices )
+		if ( !onlyHasInside() )
 		{
-			new_v_valid_tag.push_back( m_vts_valid[ vi ] );
-			new_v_finite_tag.push_back( isVertexFinite( vi ) );
+			vector<bool> new_v_valid_tag;
+			vector<bool> new_v_finite_tag;
+			for ( const auto& vi : new_vts_indices )
+			{
+				new_v_valid_tag.push_back( m_vts_valid[ vi ] );
+				new_v_finite_tag.push_back( isVertexFinite( vi ) );
+			}
+			m_vts_valid = new_v_valid_tag;
+			m_is_finite_v = new_v_finite_tag;
+			new_v_valid_tag.clear();
+			new_v_valid_tag.shrink_to_fit();
+			new_v_finite_tag.clear();
+			new_v_finite_tag.shrink_to_fit();
+			cout << "done: updating validity tag for vertices." << endl;
 		}
-		m_vts_valid = new_v_valid_tag;
-		m_is_finite_v = new_v_finite_tag;
-		new_v_valid_tag.clear();
-		new_v_valid_tag.shrink_to_fit();
-		new_v_finite_tag.clear();
-		new_v_finite_tag.shrink_to_fit();
-		cout << "done: updating validity tag for vertices." << endl;
 		// update radius function for each new vertex
 		if ( radiiValid() )
 		{
@@ -992,11 +1010,14 @@ namespace voxelvoro {
 			cout << "done: updating radius function for vertices." << endl;
 		}
 		// keep only those vert-msure for the new vts
-		vector<float> new_v_msure;
-		for ( auto i : new_vts_indices )
-			new_v_msure.push_back( m_v_msure[ i ] );
-		m_v_msure = std::move( new_v_msure );
-		cout << "done: updating measure for vertices." << endl;
+		if ( isMsureReady() )
+		{
+			vector<float> new_v_msure;
+			for ( auto i : new_vts_indices )
+				new_v_msure.push_back( m_v_msure[ i ] );
+			m_v_msure = std::move( new_v_msure );
+			cout << "done: updating measure for vertices." << endl;
+		}
 
 		// Checking edges:
 		// some edges may degenerate to vertex, some may still are valid edges.
@@ -1022,10 +1043,12 @@ namespace voxelvoro {
 			auto new_e = util::makeEdge( u, v );
 			//cout << "new edge " << new_e << endl;
 			new_edges.insert( new_e );
-			new_e_msure.push_back( m_e_msure[ ei ] ); // save msure for this edge
+			if ( isMsureReady() )
+				new_e_msure.push_back( m_e_msure[ ei ] ); // save msure for this edge
 		}
-		m_e_msure = std::move( new_e_msure );
-		cout << "done: checking and handling edges degeneracy after merging (also keep only valid edges' measure)." << endl;
+		if ( isMsureReady() )
+			m_e_msure = std::move( new_e_msure );
+		cout << "done: checking and handling edges degeneracy after merging (also might have kept valid edges' measure)." << endl;
 
 		// Checking faces:
 		// some faces may degenerate to edges, some may still be valid faces.
@@ -1123,8 +1146,6 @@ namespace voxelvoro {
 
 		/*Finalize the new geometry struct*/
 		temp_timer.start();
-		new_geom.finalize();
-		new_geom.collectSpace();
 		//// estimate circumradius for edges w/o nb valid faces
 		//// (this is hacky but efficient. A more consistent but slower way is we should associate the sites
 		//// for the nb invalid faces to the edge, then compute circum-radius later when lambda measure is requested)
@@ -1137,8 +1158,10 @@ namespace voxelvoro {
 		//}
 
 		// replace old geometry with the new one
-		m_geom = new_geom;
-		new_geom.clear();
+		m_geom = std::move( new_geom );
+		m_geom.finalize();
+		m_geom.collectSpace();
+		//new_geom.clear();
 		cout << "done: replacing old with new geometry struct." << endl;
 
 		/* update edge and face flags */
@@ -1155,11 +1178,13 @@ namespace voxelvoro {
 			if ( !remove_face[ i ] )
 			{
 				facesites_cpy.push_back( m_face_sites[ i ] );
-				new_f_msure.push_back( m_f_msure[ i ] );
+				if ( isMsureReady() )
+					new_f_msure.push_back( m_f_msure[ i ] );
 			}
 		}
 		m_face_sites = std::move( facesites_cpy );
-		m_f_msure = std::move( new_f_msure );
+		if ( isMsureReady() )
+			m_f_msure = std::move( new_f_msure );
 		// update edge / face is-finite-flag
 
 		temp_timer.stop();
@@ -1430,6 +1455,12 @@ namespace voxelvoro {
 	{
 		m_r_valid = false;
 		m_face_sites_valid = false;
+		m_only_inside = -1;
+	}
+
+	void VoroInfo::set_only_inside( bool yesno )
+	{
+		m_only_inside = yesno;
 	}
 
 	void VoroInfo::load_voro_vts( ifstream & _in_node, 
@@ -1458,7 +1489,7 @@ namespace voxelvoro {
 
 		point v;
 		int vid;
-		m_bbox_for_inside.clear();
+		m_bbox.clear();
 		for ( size_t i = 0; i < n_vts; ++i )
 		{
 			// skip the node id
@@ -1477,10 +1508,10 @@ namespace voxelvoro {
 				continue;
 			if ( _vol )
 				( *_old_new_v_map )[ i ] = m_geom.numVts();
-
 			m_geom.appendVert( v );
-			m_is_finite_v.push_back( true );
-			m_bbox_for_inside += v;
+			if (!_vol ) // only need *finite* when loading entire VD
+				m_is_finite_v.push_back( true );
+			m_bbox += v;
 		}
 
 		buffer.clear(); 
@@ -1546,18 +1577,20 @@ namespace voxelvoro {
 				( *_old_new_e_map )[ eid ] = m_geom.numEdges();
 			}
 
-			if ( e[ 1 ] == -1 )
-			{
-				// create an infinite vertex for this infinite edge to refer to
-				point inf_v = geom().getVert( e[ 0 ] ) + ( -dir ) * m_bbox_for_inside.radius()*0.01f;
-				m_geom.appendVert( inf_v );
-				m_is_finite_v.push_back( false );
-				e[ 1 ] = m_geom.numVts() - 1;
-			}
-			else
-			{
-				m_is_finite_e.push_back( true );
-			}
+			// only handle element *finiteness* when loading entire VD
+			if ( !_vol )
+				if ( e[ 1 ] == -1 )
+				{
+					// create an infinite vertex for this infinite edge to refer to
+					point inf_v = geom().getVert( e[ 0 ] ) + ( -dir ) * m_bbox.radius()*0.01f;
+					m_geom.appendVert( inf_v );
+					m_is_finite_v.push_back( false );
+					e[ 1 ] = m_geom.numVts() - 1;
+				}
+				else
+				{
+					m_is_finite_e.push_back( true );
+				}
 			m_geom.appendEdge( e );
 		}
 		m_is_finite_e.shrink_to_fit();
@@ -1632,28 +1665,30 @@ namespace voxelvoro {
 					f_erep[ j ] = eid;
 				}
 			
-			// may need to create a new edge for the infinite edge of this face
-			if ( f_erep[ f_erep.size() - 1 ] == -1 )
-			{
-				// grab adjacent 2 half-infinite edges to create this new edge
-				auto e1 = geom().getEdge( f_erep.front() );
-				auto e2 = geom().getEdge( *( f_erep.end() - 2 ) );
-				auto new_e = util::makeEdge( e1[ 1 ], e2[ 1 ] );
-				m_geom.appendEdge( new_e );
-				m_is_finite_e.push_back( false );
-				f_erep.back() = geom().numEdges() - 1;
-				m_is_finite_f.push_back( false );
-			}
-			else
-			{
-				m_is_finite_f.push_back( true );
-			}
+			// only need to handle element *finiteness* when loading entire VD
+			if (!_vol )
+				if ( f_erep[ f_erep.size() - 1 ] == -1 )
+				{
+					// grab adjacent 2 half-infinite edges to create this new edge
+					auto e1 = geom().getEdge( f_erep.front() );
+					auto e2 = geom().getEdge( *( f_erep.end() - 2 ) );
+					auto new_e = util::makeEdge( e1[ 1 ], e2[ 1 ] );
+					m_geom.appendEdge( new_e );
+					m_is_finite_e.push_back( false );
+					f_erep.back() = geom().numEdges() - 1;
+					m_is_finite_f.push_back( false );
+				}
+				else
+				{
+					m_is_finite_f.push_back( true );
+				}
 
 			f_of_vts.resize( nsides );
 			trace_face( f_erep, m_geom.m_edges, f_of_vts );
 
 			// add this face to geometry
-			m_geom.appendFace( f_of_vts, f_erep );
+			//m_geom.appendFace( f_of_vts, f_erep );
+			m_geom.appendFace( f_of_vts );
 			// save two sites for this face
 			m_face_sites.push_back( ivec2( s1, s2 ) );
 
