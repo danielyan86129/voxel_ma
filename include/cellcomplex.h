@@ -28,7 +28,8 @@ struct cellcomplex
 	cellcomplex();
 
 	// construct from given v, e, and triangles.
-	cellcomplex(const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces);
+	// by default this cc will be finalized. set _perform_finalize = false to disable this feature. This minimizes memory footprint.
+	cellcomplex(const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces, bool _perform_finalize=true);
 
 	~cellcomplex();
 
@@ -36,11 +37,22 @@ struct cellcomplex
 	** interfaces for making query
 	*/
 	inline bool isFinalized() const;
+	// TODO: maybe we need to be able to know manifold-ness
+	//bool is2Manifold();
 
 	//
 	// info will be computed if not present upon request 
 	// return true if computation takes place, false if no computation needs to be done
 	bool needVVAdjacency();
+	
+	//
+	// collect edges from faces internally
+	// return true if all edges are just computed, false if no computation needs to be done
+	bool needEdges();
+
+	//
+	// reset states
+	void invalidateStates();
 
 	//
 	// compute connected components based on face adjacency, i.e.
@@ -89,6 +101,7 @@ struct cellcomplex
 	//
 	// compute euler characteristics for this complex
 	void eulerChar( eulerchar& _ec ) const;
+	void eulerChar( eulerchar& _ec );
 	//
 	// returns primitive (vert, edge, or face) by its index
 	//

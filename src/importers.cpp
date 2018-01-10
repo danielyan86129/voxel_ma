@@ -156,7 +156,7 @@ namespace voxelvoro {
 		
 		return ImportErrCode::SUCCESS;
 	}
-	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc )
+	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc, bool _finalize_cc /*= true*/ )
 	{
 		auto fname = fs::path( _filename );
 		if ( fname.extension() == ".off" )
@@ -167,7 +167,7 @@ namespace voxelvoro {
 			vector<uTriFace> trifaces;
 			for ( auto f : mesh_tmp->faces )
 				trifaces.emplace_back( f[ 0 ], f[ 1 ], f[ 2 ] );
-			_cc = cellcomplex( mesh_tmp->vertices, {}, trifaces );
+			_cc = cellcomplex( mesh_tmp->vertices, {}, trifaces, _finalize_cc );
 			delete mesh_tmp;
 		}
 		else if ( fname.extension() == ".ply" )
@@ -177,7 +177,7 @@ namespace voxelvoro {
 			vector<ivec2> edges;
 			vector<uTriFace> faces;
 			readFromPLY( _filename.c_str(), vts, edges, faces, dump, dump, dump );
-			_cc = cellcomplex( vts, edges, faces );
+			_cc = cellcomplex( vts, edges, faces, _finalize_cc );
 		}
 		else
 			return ImportErrCode::INVALID_FORMAT;

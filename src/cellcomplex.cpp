@@ -10,24 +10,32 @@ using std::queue;
 
 cellcomplex::cellcomplex()
 {
-	m_has_infinite_v = m_has_infinite_e = false;
-	m_is_finalized = false;
+	invalidateStates();
 }
 
-cellcomplex::cellcomplex( const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces )
+cellcomplex::cellcomplex( const vector<point>& _vts, const vector<ivec2>& _edges, const vector<uTriFace>& _faces, 
+	bool _perform_finalize /*= true*/ )
 {
+	invalidateStates();
 	for ( const auto& v : _vts )
 		appendVert( v );
 	for ( const auto& e : _edges )
 		appendEdge( e );
 	for ( const auto& t : _faces )
 		appendFace( t );
-	finalize();
+	if (_perform_finalize )
+		finalize();
 }
 
 cellcomplex::~cellcomplex()
 {
 
+}
+
+void cellcomplex::invalidateStates()
+{
+	m_has_infinite_v = m_has_infinite_e = false;
+	m_is_finalized = false;
 }
 
 bool cellcomplex::needVVAdjacency()
@@ -42,6 +50,29 @@ bool cellcomplex::needVVAdjacency()
 		add_nb_edge( e[ 0 ], ei );
 		add_nb_edge( e[ 1 ], ei );
 	}
+	return true;
+}
+bool cellcomplex::needEdges()
+{
+	if ( isFinalized() )
+		return false;
+
+	vector<int> f_vts;
+	std::unordered_set<ivec2, ivec2Hash> edges_set;
+	for ( auto fi = 0; fi < numFaces(); ++fi )
+	{
+		f_vts.clear();
+		getFaceVRep( fi, f_vts );
+		for ( auto j = 0; j < f_vts.size(); ++j )
+		{
+			auto e = util::makeEdge( f_vts[ j ], f_vts[ ( j + 1 ) % f_vts.size() ] );
+			edges_set.insert( e );
+		}
+	}
+	for ( auto e : edges_set )
+		appendEdge( e );
+	edges_set.clear();
+
 	return true;
 }
 
@@ -260,6 +291,7 @@ size_t cellcomplex::createInfiniteVertex( const point & _p )
 
 void cellcomplex::clear()
 {
+	invalidateStates();
 	clearVertList();
 	clearEdgeList();
 	clearFaceList();
@@ -267,6 +299,7 @@ void cellcomplex::clear()
 }
 void cellcomplex::clearFaceList()
 {
+	invalidateStates();
 	m_faceIndex.clear();
 	m_faceVtsN.clear();
 	m_faces_v_rep.clear();
@@ -274,10 +307,12 @@ void cellcomplex::clearFaceList()
 }
 void cellcomplex::clearEdgeList()
 {
+	invalidateStates();
 	m_edges.clear();
 }
 void cellcomplex::clearVertList()
 {
+	invalidateStates();
 	m_vts.clear();
 }
 
@@ -333,6 +368,8 @@ void cellcomplex::clear_adjacency()
 
 void cellcomplex::finalize()
 {
+	if ( isFinalized() )
+		return;
 	/* time stats */
 	timer t_total;
 	t_total.start();
@@ -457,6 +494,17 @@ void cellcomplex::finalize()
 
 void cellcomplex::eulerChar( eulerchar& _ec ) const
 {
+	int ncc = util::findNumConnComponents( this->m_vts, this->m_edges );
+	_ec.V = numVts();
+	_ec.E = numEdges();
+	_ec.F = numFaces();
+	_ec.T = 0;
+	_ec.euler = _ec.V - _ec.E + _ec.F - _ec.T;
+	_ec.C = ncc;
+}
+void cellcomplex::eulerChar( eulerchar& _ec )
+{
+	needEdges();
 	int ncc = util::findNumConnComponents( this->m_vts, this->m_edges );
 	_ec.V = numVts();
 	_ec.E = numEdges();

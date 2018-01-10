@@ -40,7 +40,7 @@ namespace voxelvoro
 	// import mesh from the given file name (file formats: .ply | .off)
 	// the file could describe a manifold/non-manifold 2-cell complex
 	// returns a cellcomplex representing the mesh
-	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc );
+	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc, bool _finalize_cc = true );
 	//
 	// read vts, edges, and faces from a ply mesh file along with measures
 	ImportErrCode readFromPLY( const char* _ply_filename,

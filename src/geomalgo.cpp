@@ -65,7 +65,7 @@ namespace util {
 		}
 		return true;
 	}
-	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2> _edges )
+	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2>& _edges )
 	{
 		vector<vector<int>> vvadj( _vts.size(), {} );
 		for ( auto e : _edges )

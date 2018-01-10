@@ -141,7 +141,7 @@ namespace util {
 	bool is_degenerate(const vector<point> _poly, float _eps);
 
 	// find the num of connected components
-	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2> _edges );
+	int findNumConnComponents( const vector<point>& _vts, const vector<ivec2>& _edges );
 	// user provides vert-vert adj list, a pre-allocated list for visited flag
 	int findNumConnComponents(
 		const vector<vector<int>>& _v_v_adj_tbl,

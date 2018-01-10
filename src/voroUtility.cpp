@@ -91,12 +91,11 @@ DEFINE_string( sof, "", "the output volume in format .sof the input will be conv
 // cmd options for -md=t
 DEFINE_string( skm, "", "the input file containing graph and edge measures .skMsure. REQUIRED." );
 
-// cmd options for -md=topo
+/* cmd options for -md=topo */
 DEFINE_string( meshToCheck, "",
 	"The input file representing a mesh with open boundary (e.g. medial axis). REQUIRED."\
 	"We want to detect whether there are any closed components - \"pockets\" on it." );
-
-// cmd options for reading just IVD (or the entire VD)
+DEFINE_bool( isMan, true, "Is the meshToCheck a manifold? OPTIONAL." );
 DEFINE_bool( loadIVD, true, "load only IVD from tetgen voro output. OPTIONAL." );
 
 void printUsage()
@@ -381,7 +380,7 @@ void main( int _argc, char * _argv[] )
 	{
 		// read in mesh
 		cellcomplex cc;
-		auto err = voxelvoro::readMesh( FLAGS_meshToCheck, cc );
+		auto err = voxelvoro::readMesh( FLAGS_meshToCheck, cc, !FLAGS_isMan );
 		if ( err != voxelvoro::ImportErrCode::SUCCESS )
 		{
 			cout << "Error: cannot read file: " << FLAGS_meshToCheck << endl;
@@ -392,8 +391,17 @@ void main( int _argc, char * _argv[] )
 		cc.eulerChar( euler_char );
 		cout << "euler char -> " << euler_char.euler << endl;
 		cout << "connected component -> " << euler_char.C << endl;
-		// remove open components. if anything left, the mesh has closed pockets.
-		int n_closed = voxelvoro::nClosedComponents( cc );
+		int n_closed = 0;
+		if ( !FLAGS_isMan )
+		{
+			// remove open components. if anything left, the mesh has closed pockets.
+			n_closed = voxelvoro::nClosedComponents( cc );
+		}
+		else
+		{
+			// # pockets equal to # conn. comp.
+			n_closed = euler_char.C;
+		}
 		cout << "closed component -> " << n_closed << endl;
 		goto SUCCESS;
 	}
