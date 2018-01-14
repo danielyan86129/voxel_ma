@@ -75,7 +75,7 @@ DEFINE_bool( outToMat, false, "output voro-diagram to a mathematica file. OPTION
 DEFINE_bool( outToDotma, false, "output voro-diagram to a .ma file (input format to QMAT). OPTIONAL." );
 
 // cmd option: thinning threshold
-DEFINE_double( tt, 0.08, "threshold used in thinning. OPTIONAL." );
+DEFINE_string( tt, "0.08", "a list of comma-sep threshold used in thinning. OPTIONAL." );
 
 // cmd option: mapping function from MC to voxel surface & related parameters
 DEFINE_string( dofuncmap, "",
@@ -102,6 +102,17 @@ void printUsage()
 {
 	cout << google::ProgramUsage() << endl;
 };
+
+// split a string into a list of numbers
+vector<float> split( const std::string& _s, char _d )
+{
+	vector<float> res;
+	std::stringstream ss( _s );
+	std::string item;
+	while ( std::getline( ss, item, _d ) ) 
+		res.push_back( std::stof( item ) );
+	return res;
+}
 
 void main( int _argc, char * _argv[] )
 {
@@ -248,7 +259,7 @@ void main( int _argc, char * _argv[] )
 			if (
 				voxelvoro::exportInsideVoroMesh( voro, vol, voromesh_file.c_str(),
 					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, true/*inside only*/, false/*finite only*/,
-					FLAGS_tt ) == voxelvoro::ExportErrCode::SUCCESS
+					split(FLAGS_tt, ',') ) == voxelvoro::ExportErrCode::SUCCESS
 				)
 			{
 				cout << "Done: inside voro info written." << endl;

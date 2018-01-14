@@ -151,7 +151,7 @@ namespace voxelvoro
 		bool _need_euler,
 		bool _collapse_degenerate_edges,
 		bool _inside_only, bool _finite_only,
-		double _tt/*thinning threshold*/ )
+		const vector<float>& _tt/*thinning threshold(s)*/ )
 	{
 		timer t_thin, t_write_IVD, t_write_thinIVD;
 
@@ -245,47 +245,50 @@ namespace voxelvoro
 				cout << "range of measure: " << "[" << *min_max_msure.first << "," << *min_max_msure.second << "]" << endl;
 
 				float eps = _voro.getInsidePartSize() * 0.000001f;
-				if ( !util::is_equal( _tt, 0.0, (double)eps ) && _tt > 0.0 )
+				CellComplexThinning ccthin;
+				cellcomplex cc( vts_trans, edges, tri_faces );
+				ccthin.setup( &cc );
+				ccthin.assignElementValues( vts_msure, edges_msure, faces_msure );
+				ccthin.preprocess();
+				for ( double t : _tt )
 				{
-					// output pruned mesh
-					t_thin.start();
-
-					CellComplexThinning ccthin;
-					cellcomplex cc( vts_trans, edges, tri_faces );
-					ccthin.setup( &cc );
-					ccthin.assignElementValues( vts_msure, edges_msure, faces_msure );
-					ccthin.preprocess();
-					auto minmax_fmsure = std::minmax_element( faces_msure.begin(), faces_msure.end() );
-					//float thresh = ( *minmax_fmsure.second ) * 0.1f;
-					float thresh = _voro.getInsidePartSize() * _tt;
-					ccthin.prune( thresh, thresh, false );
-					ccthin.remainingCC( vts_trans, edges, tri_faces );
-
-					t_thin.stop();
-
-					if ( _need_euler )
+					if ( !util::is_equal( t, 0.0, (double)eps ) && t > 0.0 )
 					{
-						eulerchar euler_struct;
-						util::computeEulerChar( vts_trans, edges, tri_faces, euler_struct );
-						euler_struct.logToConsole( "voro diagram after thinning" );
-					}
-					if ( vts_trans.empty() )
-					{
-						cout << "Thinned IVD: 0 vts remaining; IO skipped." << endl;
-						goto END_PLY_BRANCH;
-					}
+						// output pruned mesh
+						t_thin.start();
 
-					// output the thinned result to file
-					vts_msure.clear(); edges_msure.clear(); faces_msure.clear();
-					std::string _thin_file = _mesh_file;
-					auto end_str = std::string( "_thinned" ) + std::to_string( _tt );
-					_thin_file.insert( _thin_file.find( ".ply" ), end_str );
-					cout << "writing remaining cc to file: " << _thin_file << endl;
-					t_write_thinIVD.start();
-					writeToPLY( _thin_file.c_str(), vts_trans, edges, tri_faces,
-						vts_msure, edges_msure, faces_msure );
-					t_write_thinIVD.stop();
-				}
+						auto minmax_fmsure = std::minmax_element( faces_msure.begin(), faces_msure.end() );
+						//float thresh = ( *minmax_fmsure.second ) * 0.1f;
+						float thresh = _voro.getInsidePartSize() * t;
+						ccthin.prune( thresh, thresh, false );
+						ccthin.remainingCC( vts_trans, edges, tri_faces );
+
+						t_thin.stop();
+
+						if ( _need_euler )
+						{
+							eulerchar euler_struct;
+							util::computeEulerChar( vts_trans, edges, tri_faces, euler_struct );
+							euler_struct.logToConsole( "voro diagram after thinning" );
+						}
+						if ( vts_trans.empty() )
+						{
+							cout << "Thinned IVD: 0 vts remaining; IO skipped." << endl;
+							goto END_PLY_BRANCH;
+						}
+
+						// output the thinned result to file
+						vts_msure.clear(); edges_msure.clear(); faces_msure.clear();
+						std::string _thin_file = _mesh_file;
+						auto end_str = std::string( "_thinned" ) + std::to_string( t );
+						_thin_file.insert( _thin_file.find( ".ply" ), end_str );
+						cout << "writing remaining cc to file: " << _thin_file << endl;
+						t_write_thinIVD.start();
+						writeToPLY( _thin_file.c_str(), vts_trans, edges, tri_faces,
+							vts_msure, edges_msure, faces_msure );
+						t_write_thinIVD.stop();
+					} // pruning for one threshold
+				} // pruning for all thresholds in _tt list
 			} // local scope for goto to skip
 		END_PLY_BRANCH:
 			cout << "time(THIN) -> thinning: " << t_thin.elapseMilli().count() << " ms" << endl;

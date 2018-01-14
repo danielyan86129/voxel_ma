@@ -33,7 +33,7 @@ namespace voxelvoro
 		bool _need_euler, 
 		bool _collapse_degenerate_edges, 
 		bool _inside_only, bool _finite_only,
-		double _tt/*thinning threshold*/ );
+		const vector<float>& _tt/*thinning threshold(s)*/ );
 	//
 	// convert a dense volume (stored in .mrc file) to a sparse volume (stored in .sof file)
 	bool denseToSparse( const char* _src, const char* _dest );
