@@ -6,6 +6,7 @@
 #include <cassert>
 #include <plyall.h>
 #include <filesystem>
+#include <cstdio>
 
 namespace voxelvoro {
 	using std::cout;
@@ -154,6 +155,213 @@ namespace voxelvoro {
 		}
 		cout << "Done: voro info read." << endl;
 		
+		return ImportErrCode::SUCCESS;
+	}
+	ImportErrCode voxelvoro::profileVoroInfoIO( const char* _basename )
+	{
+		auto v_file = string( _basename ) + ".v.node";
+		auto e_file = string( _basename ) + ".v.edge";
+		auto f_file = string( _basename ) + ".v.face";
+		auto c_file = string( _basename ) + ".v.cell";
+		FILE *v_f, *e_f, *f_f, *c_f, *out_f; 
+		timer read_time, write_time;
+		double dump; int dump_int;
+		int j = 0;
+
+		// open all input files
+		v_f = fopen( v_file.c_str(), "r" );
+		e_f = fopen( e_file.c_str(), "r" );
+		f_f = fopen( f_file.c_str(), "r" );
+		c_f = fopen( c_file.c_str(), "r" );
+		if ( !v_f || !e_f || !f_f || !c_f )
+		{
+			printf( "Cannot open .v.node/edge/face/cell file with base name: %s\n", _basename );
+			return ImportErrCode::NOOPENINPUT;
+		}
+		// the only output file
+		string outfilename = string( _basename ) + ".v.myout";
+		out_f = fopen( outfilename.c_str(), "w" );
+		if ( !out_f )
+		{
+			printf( "Cannot open file to write: %s\n", outfilename.c_str() );
+			return ImportErrCode::FAILURE;
+		}
+
+		printf( "parsing .v.node\n" );
+		// start reading voro vts file
+		read_time.start();
+		// header
+		int n_vts = 0;
+		fscanf( v_f, "%d %f %f %f", &n_vts, &dump, &dump, &dump );
+		vector<float> data_v( n_vts * 4 );
+		// read each vertex
+		j = 0;
+		for ( auto i = 0; i < n_vts; ++i )
+		{
+			fscanf( v_f, "%f", &data_v[ j++ ] );
+			fscanf( v_f, "%f", &data_v[ j++ ] );
+			fscanf( v_f, "%f", &data_v[ j++ ] );
+			fscanf( v_f, "%f", &data_v[ j++ ] );
+		}
+		fclose( v_f );
+		read_time.stop();
+		printf( "Done: parsing .v.node\n" );
+
+		printf( "writing voro vts\n" );
+		// writing vts to file
+		write_time.start();
+		// write header
+		fprintf( out_f, "%d 3 0 0\n", n_vts );
+		// write each vert
+		j = 0;
+		for ( auto i = 0; i < n_vts; ++i )
+		{
+			fprintf( out_f, "%d %16.8e %16.8e %16.8e\n", (int)data_v[ j ], data_v[ j+1 ], data_v[ j+2 ], data_v[ j+3 ] );
+			j += 4;
+		}
+		write_time.stop();
+		data_v.clear(); data_v.shrink_to_fit();
+		printf( "Done: writing voro vts\n" );
+
+		printf( "parsing .v.edge\n" );
+		// reading voro edge file
+		read_time.restart();
+		// header
+		int n_edges = 0;
+		fscanf( e_f, "%d %d", &n_edges, &dump_int );
+		int* data_e = new int[ n_edges* 3 ];
+		j = 0;
+		// read each edge
+		// TODO: .v.edge contains space in the beginning of each line. skip that first!
+		for ( auto i = 0; i < n_edges; ++i )
+		{
+			fscanf( v_f, " %d %d %d", &data_e[ j ], &data_e[ j + 1 ], &data_e[ j + 2 ] );
+			j += 3;
+			if ( data_e[ j - 1 ] == -1 )
+			{
+				fscanf( v_f, " %f %f %f", &dump, &dump, &dump );
+			}
+		}
+		fclose( e_f );
+		read_time.stop();
+		printf( "Done: parsing .v.edge\n" );
+
+		printf( "writing voro edges\n" );
+		// write edges to file
+		write_time.restart();
+		// write header
+		fprintf( out_f, "%d 0\n", n_edges );
+		// write edges
+		j = 0;
+		for ( auto i = 0; i < n_edges; ++i )
+		{
+			fprintf( out_f, "%d %d %d\n", data_e[ j ], data_e[ j+1 ], data_e[ j+2 ] );
+			j += 3;
+		}
+		write_time.stop();
+		delete[] data_e;
+		printf( "Done: writing voro edges\n" );
+
+		printf( "parsing .v.face\n" );
+		// read .v.face
+		read_time.restart();
+		// header
+		int n_faces = 0;
+		fscanf( f_f, "%d %d", &n_faces, &dump );
+		vector<int> data_f;
+		// read each face
+		j = 0;
+		for ( auto i = 0; i < n_faces; ++i )
+		{
+			for ( auto ii = 0; ii < 4; ++ii )
+			{
+				int tmp;
+				fscanf( f_f, "%d", &tmp );
+				data_f.push_back( tmp );
+			}
+			int num_entry = data_f[ data_f.size() - 1 ];
+			for (auto ii = 0; ii < num_entry; ++ii )
+			{
+				int tmp;
+				fscanf( f_f, "%d", &tmp );
+				data_f.push_back( tmp );
+			}
+		}
+		// close file
+		fclose( f_f );
+		read_time.stop();
+		printf( "Done: parsing .v.face\n" );
+
+		printf( "writing voro faces\n" );
+		// write faces to file
+		write_time.restart();
+		// header
+		fprintf( out_f, "%d 0\n", n_faces );
+		// each face
+		j = 0;
+		for ( auto i = 0; i < n_faces; ++i )
+		{
+			int num_entry = 4 + data_f[ j + 4 - 1 ];
+			for ( auto ii = 0; ii < num_entry; ++ii )
+				fprintf( out_f, "%d ", data_f[ j++ ] );
+			fprintf( out_f, "\n" );
+		}
+		write_time.stop();
+		data_f.clear(); data_f.shrink_to_fit();
+		printf( "Done: writing voro faces\n" );
+
+		printf( "parsing .v.cell\n" );
+		// read .v.cell
+		read_time.restart();
+		// header
+		int n_cells = 0;
+		fscanf( c_f, "%d", &n_cells );
+		// each cell
+		vector<int> data_c;
+		for ( auto i = 0; i < n_cells; ++i )
+		{
+			int id, num_entry;
+			fscanf( c_f, "%d %d", &id, &num_entry );
+			data_c.push_back( id );
+			data_c.push_back( num_entry );
+			for ( auto ii = 0; ii < num_entry; ++ii )
+			{
+				int tmp;
+				fscanf( c_f, "%d", &tmp );
+				data_c.push_back( tmp );
+			}
+		}
+		// close
+		fclose( c_f );
+		read_time.stop();
+		printf( "Done: parsing .v.cell\n" );
+
+		printf( "writing voro cells\n" );
+		// write cells to output file
+		write_time.restart();
+		// header
+		fprintf( out_f, "%d\n", n_cells );
+		// each cell
+		j = 0;
+		for ( auto i = 0; i < n_cells; ++i )
+		{
+			int num_entry = 2 + data_c[ j + 1 ];
+			for ( auto ii = 0; ii < num_entry; ++ii )
+			{
+				fprintf( out_f, "%d ", data_c[ j++ ] );
+			}
+			fprintf( out_f, "\n" );
+		}
+		write_time.stop();
+		data_c.clear(); data_c.shrink_to_fit();
+		printf( "Done: writing voro cells\n" );
+
+		// close output file
+		fclose( out_f );
+
+		printf( "time(I/O) -> parsing voro files: %d ms\n", read_time.elapseMilli().count() );
+		printf( "time(I/O) -> writing voro files: %d ms\n", write_time.elapseMilli().count() );
+
 		return ImportErrCode::SUCCESS;
 	}
 	ImportErrCode readMesh( const string& _filename, cellcomplex& _cc, bool _finalize_cc /*= true*/ )

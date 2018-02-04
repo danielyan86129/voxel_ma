@@ -36,6 +36,8 @@ namespace voxelvoro
 	// @param _sites_pos_file: optionally import the contributing sites from the given file
 	ImportErrCode readVoroInfo( const char* _basename, VoroInfo& _voro, 
 		bool _need_euler, const char* _sites_pos_file = nullptr, shared_ptr<Volume3DScalar> _vol = nullptr );
+	// simply parse all voro files (from tetgen) to profile I/O time
+	ImportErrCode profileVoroInfoIO( const char* _basename );
 	//
 	// import mesh from the given file name (file formats: .ply | .off)
 	// the file could describe a manifold/non-manifold 2-cell complex

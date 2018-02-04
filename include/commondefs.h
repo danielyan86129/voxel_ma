@@ -153,17 +153,16 @@ struct timer
 			m_accum_time = false;
 		}
 		else
-			elapse();
+			d = e - s;
 		return e;
 	}
 	inline duration elapse()
 	{
-		d = e - s;
 		return d;
 	}
 	inline std::chrono::milliseconds elapseMilli() const
 	{
-		return std::chrono::duration_cast<millisec>( e - s );
+		return std::chrono::duration_cast<millisec>( d );
 	}
 
 private:

@@ -19,7 +19,7 @@ namespace fs = std::experimental::filesystem;
 // 
 // define valid modes here
 enum class ValidMode {
-	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, TOPO
+	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, TOPO, TIME_IO
 };
 std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2mat", ValidMode::MRC2MAT},
@@ -28,7 +28,8 @@ std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2sof", ValidMode::MRC2SOF},
 	{"r", ValidMode::R},
 	{"t", ValidMode::TREE},
-	{"topo", ValidMode::TOPO}
+	{"topo", ValidMode::TOPO},
+	{"timeio", ValidMode::TIME_IO}
 };
 //// flags/args for the program
 //ValidMode mode; // current mode 
@@ -414,6 +415,26 @@ void main( int _argc, char * _argv[] )
 			n_closed = euler_char.C;
 		}
 		cout << "closed component -> " << n_closed << endl;
+		goto SUCCESS;
+	}
+	else if ( FLAGS_md == "timeio" )
+	{
+		if ( n_remain_args < 1 )
+		{
+			cout << "wrong args: expecting tetgen voro files basename (i.e. w/o .v.*), " << endl;
+			goto FAILURE;
+		}
+		else
+		{
+			auto basename = _argv[ cur_arg_idx ];
+			cout << "Simply reading voro info to profile I/O time... " << endl;
+			if ( voxelvoro::profileVoroInfoIO( basename ) != voxelvoro::ImportErrCode::SUCCESS )
+			{
+				cout << "Error: couldn't complete reading voro info!" << endl;
+				goto FAILURE;
+			}
+			cout << "Done: I/O profiling." << endl;
+		}
 		goto SUCCESS;
 	}
 	else // unrecognized option
