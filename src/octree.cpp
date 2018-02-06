@@ -570,17 +570,19 @@ bool OctreeVolume::write_sog_file( const string& _sog_file ) const
 	buf += title_len;
 	// lower-left. TODO: find a way to extract this info from vox-mesh-matrix
 	point vol_o( 0.0f );
-	int elem_size = sizeof( point::value_type );
-	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
-	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
-	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
+	int elem_size = sizeof( float );
+	memcpy( buf, (char*)&vol_o[ 0 ], elem_size ); buf += elem_size;
+	memcpy( buf, (char*)&vol_o[ 0 ], elem_size ); buf += elem_size;
+	memcpy( buf, (char*)&vol_o[ 0 ], elem_size ); buf += elem_size;
 	// vol len
 	float vol_l = this->m_max_res;
-	memcpy( buf, &vol_l, sizeof( vol_l ) ); buf += sizeof( vol_l );
+	memcpy( buf, (char*)&vol_l, sizeof( vol_l ) ); buf += sizeof( float );
 
 	/*write header*/
 	cout << "writing header (with max-res: " << m_max_res << ")" << endl;
 	os.write( header_buf, header_size );
+	// finally write max-res
+	os.write( ( char* )&this->m_max_res, sizeof( int ) );
 
 	/* cleanup space */
 	delete header_buf;
