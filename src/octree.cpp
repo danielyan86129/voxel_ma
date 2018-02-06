@@ -73,70 +73,16 @@ OctreeVolume::~OctreeVolume()
 
 bool OctreeVolume::writeToFile( const char * _file ) const
 {
-	int n_leaf = 0, n_empty = 0, n_internal = 0;
-	ofstream os( _file, std::ios::binary );
-	if ( !os.is_open() )
+	auto ext = fs::path( _file ).extension().string();
+	if ( ext == ".sog" )
+		return write_sog_file( _file );
+	else if ( ext == ".sof" )
+		return write_sof_file( _file );
+	else
 	{
-		cout << "Error: cannot write octree to file " << _file << endl;
+		printf( "Octree file format (%s) not supported! \n", ext.c_str() );
 		return false;
 	}
-	// write node res.
-	cout << "writing max-res = " << m_max_res << endl;
-	os.write( (char*)&m_max_res, sizeof( int ) );
-
-	std::function<void( const OctreeNode* )> write_node = 
-		[&]( const OctreeNode* _node ) -> void
-	{
-		auto type = (char)_node->getType();
-		os.write( &type, sizeof( char ) );
-		unsigned char values = 0x00;
-		if ( type == NodeType::LEAF )
-		{
-			n_leaf++;
-			auto nd = dynamic_cast<const LeafNode*>( _node );
-			values = nd->getValues();
-			os.write( (char*)&values, sizeof( values ) );
-			/*if ( values == 0xa )
-			{
-				int stop = 1;
-				os.close();
-				exit( -2 );
-			}*/
-		}
-		else if ( type == NodeType::EMPTY )
-		{
-			n_empty++;
-			auto nd = dynamic_cast<const EmptyNode*>( _node );
-			values = nd->getValues();
-			os.write( (char*)&values, sizeof( values ) );
-			/*if ( values == 0xa )
-			{
-				int stop = 1;
-				os.close();
-				exit( -2 );
-			}*/
-		}
-		else if ( type == NodeType::INTERNAL )
-		{
-			n_internal++;
-			auto nd = dynamic_cast<const IntNode*>( _node );
-			for ( int i = 0; i < 2; i++ )
-				for ( int j = 0; j < 2; j++ )
-					for ( int k = 0; k < 2; k++ )
-						write_node( nd->getChild( i, j, k ) );
-		}
-		else
-		{
-			// This should never happen!
-			cout << "Error: invalid node type " << (int)type << "!" << endl;
-		}
-	};
-
-	// write everything hanging from root
-	write_node( m_root );
-	os.close();
-	cout << "# Octree nodes (leaf/empty/internal): " << n_leaf << "/" << n_empty << "/" << n_internal << endl;
-	return true;
 }
 
 unsigned char OctreeVolume::getNodeValues( int _i, int _j, int _k ) const
@@ -531,6 +477,175 @@ bool OctreeVolume::read_sog_file( const string & _sog_file )
 
 	// done.
 	infile.close();
+	return true;
+}
+
+bool OctreeVolume::write_sof_file( const string& _sof_file ) const
+{
+	int n_leaf = 0, n_empty = 0, n_internal = 0;
+	ofstream os( _sof_file, std::ios::binary );
+	if ( !os.is_open() )
+	{
+		cout << "Error: cannot write octree to file " << _sof_file << endl;
+		return false;
+	}
+	// write node res.
+	cout << "writing max-res = " << m_max_res << endl;
+	os.write( (char*)&m_max_res, sizeof( int ) );
+
+	std::function<void( const OctreeNode* )> write_node =
+		[ & ]( const OctreeNode* _node ) -> bool
+	{
+		auto type = (char)_node->getType();
+		os.write( &type, sizeof( char ) );
+		unsigned char values = 0x00;
+		if ( type == NodeType::LEAF )
+		{
+			n_leaf++;
+			auto nd = dynamic_cast<const LeafNode*>( _node );
+			values = nd->getValues();
+			os.write( (char*)&values, sizeof( values ) );
+			/*if ( values == 0xa )
+			{
+			int stop = 1;
+			os.close();
+			exit( -2 );
+			}*/
+		}
+		else if ( type == NodeType::EMPTY )
+		{
+			n_empty++;
+			auto nd = dynamic_cast<const EmptyNode*>( _node );
+			values = nd->getValues();
+			os.write( (char*)&values, sizeof( values ) );
+			/*if ( values == 0xa )
+			{
+			int stop = 1;
+			os.close();
+			exit( -2 );
+			}*/
+		}
+		else if ( type == NodeType::INTERNAL )
+		{
+			n_internal++;
+			auto nd = dynamic_cast<const IntNode*>( _node );
+			for ( int i = 0; i < 2; i++ )
+				for ( int j = 0; j < 2; j++ )
+					for ( int k = 0; k < 2; k++ )
+						write_node( nd->getChild( i, j, k ) );
+		}
+		else
+		{
+			// This should never happen!
+			cout << "Error: invalid node type " << (int)type << "!" << endl;
+			return false;
+		}
+		return true;
+	};
+
+	// write everything hanging from root
+	write_node( m_root );
+	os.close();
+	cout << "# Octree nodes (leaf/empty/internal): " << n_leaf << "/" << n_empty << "/" << n_internal << endl;
+	return true;
+}
+bool OctreeVolume::write_sog_file( const string& _sog_file ) const
+{
+	int n_leaf = 0, n_empty = 0, n_internal = 0;
+	ofstream os( _sog_file, std::ios::binary );
+	if ( !os.is_open() )
+	{
+		cout << "Error: cannot write octree to file " << _sog_file << endl;
+		return false;
+	}
+
+	/* prepare header */
+	int header_size = 128;
+	char* header_buf = new char[ header_size ];
+	auto buf = header_buf;
+	// starts with title
+	const char* title = "SOG.Format 1.0";
+	int title_len = std::strlen( title ) + 1;
+	memcpy( buf, title, title_len );
+	buf += title_len;
+	// lower-left. TODO: find a way to extract this info from vox-mesh-matrix
+	point vol_o( 0.0f );
+	int elem_size = sizeof( point::value_type );
+	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
+	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
+	memcpy( buf, &vol_o[ 0 ], elem_size ); buf += elem_size;
+	// vol len
+	float vol_l = this->m_max_res;
+	memcpy( buf, &vol_l, sizeof( vol_l ) ); buf += sizeof( vol_l );
+
+	/*write header*/
+	cout << "writing header (with max-res: " << m_max_res << ")" << endl;
+	os.write( header_buf, header_size );
+
+	/* cleanup space */
+	delete header_buf;
+
+	std::function<void( const OctreeNode*, const ivec3&, int )> write_node =
+		[ & ]( const OctreeNode* _node, const ivec3& _off, int _len ) -> bool
+	{
+		auto type = (char)_node->getType();
+		os.write( &type, sizeof( char ) );
+		unsigned char values = 0x00;
+		if ( type == NodeType::LEAF )
+		{
+			n_leaf++;
+			auto nd = dynamic_cast<const LeafNode*>( _node );
+			values = nd->getValues();
+			os.write( (char*)&values, sizeof( values ) );
+			// TODO: now use center as feature. consider use better geometry.
+			point feat_pt( _off[ 0 ] + 0.5, _off[ 1 ] + 0.5, _off[ 2 ] + 0.5 );
+			os.write( (char*)( feat_pt.data() ), sizeof( float ) * 3 );
+			/*if ( values == 0xa )
+			{
+			int stop = 1;
+			os.close();
+			exit( -2 );
+			}*/
+		}
+		else if ( type == NodeType::EMPTY )
+		{
+			n_empty++;
+			auto nd = dynamic_cast<const EmptyNode*>( _node );
+			values = nd->getValues();
+			os.write( (char*)&values, sizeof( values ) );
+			/*if ( values == 0xa )
+			{
+			int stop = 1;
+			os.close();
+			exit( -2 );
+			}*/
+		}
+		else if ( type == NodeType::INTERNAL )
+		{
+			n_internal++;
+			auto nd = dynamic_cast<const IntNode*>( _node );
+			for ( int i = 0; i < 2; i++ )
+				for ( int j = 0; j < 2; j++ )
+					for ( int k = 0; k < 2; k++ )
+					{
+						int c_len = _len / 2;
+						ivec3 c_off = _off + ivec3( i, j, k ) * c_len;
+						write_node( nd->getChild( i, j, k ), c_off, c_len );
+					}
+		}
+		else
+		{
+			// This should never happen!
+			cout << "Error: invalid node type " << (int)type << "!" << endl;
+			return false;
+		}
+		return true;
+	}; // write_node()
+
+	// write everything hanging from root
+	write_node( m_root, ivec3(0), m_max_res );
+	os.close();
+	cout << "# Octree nodes (leaf/empty/internal): " << n_leaf << "/" << n_empty << "/" << n_internal << endl;
 	return true;
 }
 

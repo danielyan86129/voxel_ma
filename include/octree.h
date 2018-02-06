@@ -74,6 +74,9 @@ protected: /*helpers*/
 	// helpers: read volume from a file of supported format (sof/sog)
 	bool read_sof_file( const string& _sof_file );
 	bool read_sog_file( const string& _sog_file );
+	// write volume to a supported file format (sof/sog)
+	bool write_sof_file( const string& _sof_file ) const;
+	bool write_sog_file( const string& _sog_file ) const;
 	// get the requested node's corners' values 
 	// search within a node starting from _off of size _len
 	// return whether the specified node is within the region or not
