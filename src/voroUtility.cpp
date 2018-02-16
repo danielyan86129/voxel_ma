@@ -19,12 +19,13 @@ namespace fs = std::experimental::filesystem;
 // 
 // define valid modes here
 enum class ValidMode {
-	MRC2MAT, VOL2MESH, VORO2MESH, R, MRC2SOF, TREE, TOPO, TIME_IO
+	MRC2MAT, VOL2MESH, VORO2MESH, VOL2MA, R, MRC2SOF, TREE, TOPO, TIME_IO
 };
 std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2mat", ValidMode::MRC2MAT},
 	{"vol2mesh", ValidMode::VOL2MESH},
 	{"voro2mesh", ValidMode::VORO2MESH},
+	{"vol2ma", ValidMode::VOL2MA},
 	{"mrc2sof", ValidMode::MRC2SOF},
 	{"r", ValidMode::R},
 	{"t", ValidMode::TREE},
@@ -283,6 +284,124 @@ void main( int _argc, char * _argv[] )
 			}
 
 			cur_arg_idx += 3; n_remain_args -= 3;
+
+			if ( FLAGS_dofuncmap != "" )
+			{
+				cout << endl << "***************************" << endl;
+				cout << "Estimating & exporting scalar field on voxel surface..." << endl;
+				auto mcgeom_filename = FLAGS_mcBase + ".mc";
+				auto skel_filename = FLAGS_mcBase + "_skel.ply";
+				if ( !std::experimental::filesystem::exists( skel_filename ) )
+					skel_filename = "";
+				cout << "skeleton file: " << skel_filename << endl;
+				auto mcmsure_name = FLAGS_dofuncmap;
+				auto mcmsure_filename = FLAGS_mcBase + "." + mcmsure_name + ".msure";
+				// outputting segmentation needs help from another measure, e.g. "bt3"
+				if ( mcmsure_name == "seglabel" || mcmsure_name == "length" )
+					mcmsure_filename = FLAGS_mcBase + ".bt3.msure";
+				else if ( mcmsure_name == "traveldist" )
+					mcmsure_filename = FLAGS_mcBase + ".bt2.msure";
+				cout << "measure file: " << mcmsure_filename << endl;
+				auto mcorder_filename = FLAGS_mcBase + ".mcorder";
+				auto output_filename = std::string( basename ) + "." + mcmsure_name + ".msure";
+				auto retcode = voxelvoro::exportScalarFieldOnVoxelSurface(
+					mcgeom_filename.c_str(),
+					mcmsure_filename == "" ? nullptr : mcmsure_filename.c_str(),
+					mcorder_filename.c_str(),
+					skel_filename == "" ? nullptr : skel_filename.c_str(),
+					output_filename.c_str(),
+					mcmsure_name.c_str(), // name of the measure
+					FLAGS_smoothR, // smoothing ratio (for smoothing measure)
+					voro
+				);
+			}
+			if ( FLAGS_outToMat )
+			{
+				// debug info required.
+				auto matfilename = voromesh_filebase + "_voro_mat.txt";
+				voro.outputToMathematica( matfilename.c_str() );
+			}
+			if ( FLAGS_outToDotma )
+			{
+				// output voro to a .ma file
+				std::string vol_file = _argv[ 1 ];
+				auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
+				cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
+				if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
+					== voxelvoro::ExportErrCode::SUCCESS )
+				{
+					cout << "Done: writing voro-diagram to .ma file." << endl;
+				}
+				else
+				{
+					cout << "Error: failed to write voro-diagram to .ma file." << endl;
+				}
+			}
+			goto SUCCESS;
+		}
+	}
+	else if ( FLAGS_md == "vol2ma" )
+	{
+		if ( n_remain_args < 2 )
+		{
+			cout << "wrong args: expecting <in:volume-name> <out:mesh-name>" << endl;
+			goto FAILURE;
+		}
+		else
+		{
+			cout << "Reading a volume file: " << _argv[ cur_arg_idx ] << endl;
+			shared_ptr<Volume3DScalar> vol;
+			if ( voxelvoro::readVolume( _argv[ cur_arg_idx ], vol ) == voxelvoro::ImportErrCode::SUCCESS )
+				cout << "Done: volume file reading." << endl;
+			else
+			{
+				cout << "Error: couldn't read volume file." << endl;
+				goto FAILURE;
+			}
+
+			vector<point> sites;
+			cout << "Computing voro ..." << endl;
+			voxelvoro::VoroInfo voro;
+			voxelvoro::computeVD( sites, voro, vol );
+			cout << "Done: voro computed." << endl;
+
+			cout << "Preprocessing voro... " << endl;
+			if ( !voxelvoro::preprocessVoro( voro, vol, FLAGS_needEuler ) )
+			{
+				cout << "Error processing voro!" << endl;
+				goto FAILURE;
+			}
+			cout << "Done: voro preprocessed." << endl;
+
+			cout << "Writing inside voro to mesh file ..." << endl;
+			auto voromesh_file = string( _argv[ cur_arg_idx + 2 ] );
+			auto voromesh_filebase = voromesh_file.substr( 0, ( voromesh_file.find_last_of( '.' ) ) );
+			if (
+				voxelvoro::exportInsideVoroMesh( voro, vol, voromesh_file.c_str(),
+					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, true/*inside only*/, false/*finite only*/,
+					split( FLAGS_tt, ',' ) ) == voxelvoro::ExportErrCode::SUCCESS
+				)
+			{
+				cout << "Done: inside voro info written." << endl;
+			}
+			else
+			{
+				cout << "Error: couldn't write inside voro info." << endl;
+				goto FAILURE;
+			}
+			// optionally write out a radii file
+			if ( voro.radiiValid() )
+			{
+				auto radii_filename = voromesh_filebase + ".r";
+				cout << "writing radii to file " << radii_filename << endl;
+				if ( voxelvoro::writeRadiiToFile( voro, radii_filename.c_str(), vol->getVoxToModelMat() )
+					== voxelvoro::ExportErrCode::SUCCESS )
+					cout << "Done: writing radii to file. " << endl;
+				else
+					cout << "Failed writing radii to file! " << endl;
+			}
+
+			cur_arg_idx += 2; n_remain_args -= 2;
 
 			if ( FLAGS_dofuncmap != "" )
 			{

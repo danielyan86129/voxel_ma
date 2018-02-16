@@ -1,9 +1,39 @@
 #pragma once
 #include "importers.h"
 #include "exporters.h"
+#include <tetgen.h>
 
 namespace voxelvoro
 {
+	/**************************************
+	**  Tetgen structures related functions
+	****************************************/
+
+	//
+	// my version of making a tetgenmesh from a tetgenio
+	void my_tetrahedralize( char *switches, tetgenio *_in, tetgenio *out,
+		tetgenmesh& m,
+		tetgenio *addin = NULL, tetgenio *bgmin = NULL );
+	void my_tetrahedralize( tetgenbehavior *_b, tetgenio *_in, tetgenio *_out,
+		tetgenmesh& _m,
+		tetgenio *_addin = nullptr, tetgenio *_bgmin = nullptr );
+	//
+	// convert a list of points to tetgen's rep
+	// NOTE: 
+	//   No mem check. E.g. if @param _tetio.numofpoints is big enough, 
+	//   we assume there is enough mem for the points
+	void pts2tetgen( const vector<point> _P, tetgenio& _tetio );
+	// compute VD of given voxel shape
+	void computeVD( const shared_ptr<Volume3DScalar>& _vol, VoroInfo& _voro );
+	//
+	// compute VD (or VD core) given sites: 
+	//   tetrahedralize -> dual (voro) -> (optionally) extract core
+	void computeVD( tetgenio& _tet_in, 
+		VoroInfo& _voro, 
+		shared_ptr<Volume3DScalar> _vol = nullptr );
+	void computeVD( const vector<point>& _sites, 
+		VoroInfo& _voro, 
+		shared_ptr<Volume3DScalar> _vol = nullptr );
 	//
 	// process voro diagram to properly tag its element (in-out)
 	// and simply degenerate elements

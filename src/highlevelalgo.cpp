@@ -6,6 +6,7 @@
 #include <TriMesh_algo.h>
 #include <plyall.h>
 
+#include "surfacing.h"
 #include "octree.h"
 #include "voxelapps.h"
 #include "..\include\highlevelalgo.h"
@@ -14,6 +15,404 @@ using trimesh::TriMesh;
 
 namespace voxelvoro
 {
+	void my_tetrahedralize( char * switches, tetgenio * _in, tetgenio* out, 
+		tetgenmesh& m, tetgenio * addin, tetgenio * bgmin )
+	{
+		tetgenbehavior b;
+		if ( !b.parse_commandline( switches ) )
+		{
+			terminatetetgen( nullptr, 10 );
+		}
+		my_tetrahedralize( &b, _in, out, m, addin, bgmin );
+	}
+	void my_tetrahedralize( tetgenbehavior * _b, tetgenio * _in, tetgenio* _out, 
+		tetgenmesh& _m, tetgenio * _addin, tetgenio * _bgmin )
+	{
+		clock_t tv[ 12 ], ts[ 5 ]; // Timing informations (defined in time.h)
+		REAL cps = (REAL)CLOCKS_PER_SEC;
+
+		tv[ 0 ] = clock();
+
+		_m.b = _b;
+		_m.in = _in;
+		_m.addin = _addin;
+
+		if ( _b->metric && _bgmin && ( _bgmin->numberofpoints > 0 ) ) {
+			_m.bgm = new tetgenmesh(); // Create an empty background mesh.
+			_m.bgm->b = _b;
+			_m.bgm->in = _bgmin;
+		}
+
+		_m.initializepools();
+		_m.transfernodes();
+
+		exactinit( _b->verbose, _b->noexact, _b->nostaticfilter,
+			_m.xmax - _m.xmin, _m.ymax - _m.ymin, _m.zmax - _m.zmin );
+
+		tv[ 1 ] = clock();
+
+		if ( _b->refine ) { // -r
+			_m.reconstructmesh();
+		}
+		else { // -p
+			_m.incrementaldelaunay( ts[ 0 ] );
+		}
+
+		tv[ 2 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( _b->refine ) {
+				printf( "Mesh reconstruction seconds:  %g\n", ( (REAL)( tv[ 2 ] - tv[ 1 ] ) ) / cps );
+			}
+			else {
+				printf( "Delaunay seconds:  %g\n", ( (REAL)( tv[ 2 ] - tv[ 1 ] ) ) / cps );
+				if ( _b->verbose ) {
+					printf( "  Point sorting seconds:  %g\n", ( (REAL)( ts[ 0 ] - tv[ 1 ] ) ) / cps );
+				}
+			}
+		}
+
+		if ( _b->plc && !_b->refine ) { // -p
+			_m.meshsurface();
+
+			ts[ 0 ] = clock();
+
+			if ( !_b->quiet ) {
+				printf( "Surface mesh seconds:  %g\n", ( (REAL)( ts[ 0 ] - tv[ 2 ] ) ) / cps );
+			}
+
+			if ( _b->diagnose ) { // -d
+				_m.detectinterfaces();
+
+				ts[ 1 ] = clock();
+
+				if ( !_b->quiet ) {
+					printf( "Self-intersection seconds:  %g\n", ( (REAL)( ts[ 1 ] - ts[ 0 ] ) ) / cps );
+				}
+
+				// Only output when self-intersecting faces exist.
+				if ( _m.subfaces->items > 0l ) {
+					_m.outnodes( _out );
+					_m.outsubfaces( _out );
+				}
+
+				return;
+			}
+		}
+
+		tv[ 3 ] = clock();
+
+		if ( ( _b->metric ) && ( _m.bgm != NULL ) ) { // -m
+			_m.bgm->initializepools();
+			_m.bgm->transfernodes();
+			_m.bgm->reconstructmesh();
+
+			ts[ 0 ] = clock();
+
+			if ( !_b->quiet ) {
+				printf( "Background mesh reconstruct seconds:  %g\n",
+					( (REAL)( ts[ 0 ] - tv[ 3 ] ) ) / cps );
+			}
+
+			if ( _b->metric ) { // -m
+				_m.interpolatemeshsize();
+
+				ts[ 1 ] = clock();
+
+				if ( !_b->quiet ) {
+					printf( "Size interpolating seconds:  %g\n", ( (REAL)( ts[ 1 ] - ts[ 0 ] ) ) / cps );
+				}
+			}
+		}
+
+		tv[ 4 ] = clock();
+
+		if ( _b->plc && !_b->refine ) { // -p
+			if ( _b->nobisect ) { // -Y
+				_m.recoverboundary( ts[ 0 ] );
+			}
+			else {
+				_m.constraineddelaunay( ts[ 0 ] );
+			}
+
+			ts[ 1 ] = clock();
+
+			if ( !_b->quiet ) {
+				if ( _b->nobisect ) {
+					printf( "Boundary recovery " );
+				}
+				else {
+					printf( "Constrained Delaunay " );
+				}
+				printf( "seconds:  %g\n", ( (REAL)( ts[ 1 ] - tv[ 4 ] ) ) / cps );
+				if ( _b->verbose ) {
+					printf( "  Segment recovery seconds:  %g\n", ( (REAL)( ts[ 0 ] - tv[ 4 ] ) ) / cps );
+					printf( "  Facet recovery seconds:  %g\n", ( (REAL)( ts[ 1 ] - ts[ 0 ] ) ) / cps );
+				}
+			}
+
+			_m.carveholes();
+
+			ts[ 2 ] = clock();
+
+			if ( !_b->quiet ) {
+				printf( "Exterior tets removal seconds:  %g\n", ( (REAL)( ts[ 2 ] - ts[ 1 ] ) ) / cps );
+			}
+
+			if ( _b->nobisect ) { // -Y
+				if ( _m.subvertstack->objects > 0l ) {
+					_m.suppresssteinerpoints();
+
+					ts[ 3 ] = clock();
+
+					if ( !_b->quiet ) {
+						printf( "Steiner suppression seconds:  %g\n",
+							( (REAL)( ts[ 3 ] - ts[ 2 ] ) ) / cps );
+					}
+				}
+			}
+		}
+
+		tv[ 5 ] = clock();
+
+		if ( _b->coarsen ) { // -R
+			_m.meshcoarsening();
+		}
+
+		tv[ 6 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( _b->coarsen ) {
+				printf( "Mesh coarsening seconds:  %g\n", ( (REAL)( tv[ 6 ] - tv[ 5 ] ) ) / cps );
+			}
+		}
+
+		if ( ( _b->plc && _b->nobisect ) || _b->coarsen ) {
+			_m.recoverdelaunay();
+		}
+
+		tv[ 7 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( ( _b->plc && _b->nobisect ) || _b->coarsen ) {
+				printf( "Delaunay recovery seconds:  %g\n", ( (REAL)( tv[ 7 ] - tv[ 6 ] ) ) / cps );
+			}
+		}
+
+		if ( ( _b->plc || _b->refine ) && _b->insertaddpoints ) { // -i
+			if ( ( _addin != NULL ) && ( _addin->numberofpoints > 0 ) ) {
+				_m.insertconstrainedpoints( _addin );
+			}
+		}
+
+		tv[ 8 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( ( _b->plc || _b->refine ) && _b->insertaddpoints ) { // -i
+				if ( ( _addin != NULL ) && ( _addin->numberofpoints > 0 ) ) {
+					printf( "Constrained points seconds:  %g\n", ( (REAL)( tv[ 8 ] - tv[ 7 ] ) ) / cps );
+				}
+			}
+		}
+
+		if ( _b->quality ) {
+			_m.delaunayrefinement();
+		}
+
+		tv[ 9 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( _b->quality ) {
+				printf( "Refinement seconds:  %g\n", ( (REAL)( tv[ 9 ] - tv[ 8 ] ) ) / cps );
+			}
+		}
+
+		if ( ( _b->plc || _b->refine ) && ( _b->optlevel > 0 ) ) {
+			_m.optimizemesh();
+		}
+
+		tv[ 10 ] = clock();
+
+		if ( !_b->quiet ) {
+			if ( ( _b->plc || _b->refine ) && ( _b->optlevel > 0 ) ) {
+				printf( "Optimization seconds:  %g\n", ( (REAL)( tv[ 10 ] - tv[ 9 ] ) ) / cps );
+			}
+		}
+
+		if ( !_b->nojettison && ( ( _m.dupverts > 0 ) || ( _m.unuverts > 0 )
+			|| ( _b->refine && ( _in->numberofcorners == 10 ) ) ) ) {
+			_m.jettisonnodes();
+		}
+
+		if ( ( _b->order == 2 ) && !_b->convex ) {
+			_m.highorder();
+		}
+
+		if ( !_b->quiet ) {
+			printf( "\n" );
+		}
+
+		if ( _out != (tetgenio *)NULL ) {
+			_out->firstnumber = _in->firstnumber;
+			_out->mesh_dim = _in->mesh_dim;
+		}
+
+		if ( _b->nonodewritten || _b->noiterationnum ) {
+			if ( !_b->quiet ) {
+				printf( "NOT writing a .node file.\n" );
+			}
+		}
+		else {
+			_m.outnodes( _out );
+		}
+
+		if ( _b->noelewritten ) {
+			if ( !_b->quiet ) {
+				printf( "NOT writing an .ele file.\n" );
+			}
+			_m.indexelements();
+		}
+		else {
+			if ( _m.tetrahedrons->items > 0l ) {
+				_m.outelements( _out );
+			}
+		}
+
+		if ( _b->nofacewritten ) {
+			if ( !_b->quiet ) {
+				printf( "NOT writing an .face file.\n" );
+			}
+		}
+		else {
+			if ( _b->facesout ) {
+				if ( _m.tetrahedrons->items > 0l ) {
+					_m.outfaces( _out );  // Output all faces.
+				}
+			}
+			else {
+				if ( _b->plc || _b->refine ) {
+					if ( _m.subfaces->items > 0l ) {
+						_m.outsubfaces( _out ); // Output boundary faces.
+					}
+				}
+				else {
+					if ( _m.tetrahedrons->items > 0l ) {
+						_m.outhullfaces( _out ); // Output convex hull faces.
+					}
+				}
+			}
+		}
+
+
+		if ( _b->nofacewritten ) {
+			if ( !_b->quiet ) {
+				printf( "NOT writing an .edge file.\n" );
+			}
+		}
+		else {
+			if ( _b->edgesout ) { // -e
+				_m.outedges( _out ); // output all mesh edges. 
+			}
+			else {
+				if ( _b->plc || _b->refine ) {
+					_m.outsubsegments( _out ); // output subsegments.
+				}
+			}
+		}
+
+		if ( ( _b->plc || _b->refine ) && _b->metric ) { // -m
+			_m.outmetrics( _out );
+		}
+
+		if ( !_out && _b->plc &&
+			( ( _b->object == tetgenbehavior::OFF ) ||
+			( _b->object == tetgenbehavior::PLY ) ||
+				( _b->object == tetgenbehavior::STL ) ) ) {
+			_m.outsmesh( _b->outfilename );
+		}
+
+		if ( !_out && _b->meditview ) {
+			_m.outmesh2medit( _b->outfilename );
+		}
+
+
+		if ( !_out && _b->vtkview ) {
+			_m.outmesh2vtk( _b->outfilename );
+		}
+
+		if ( _b->neighout ) {
+			_m.outneighbors( _out );
+		}
+
+		if ( _b->voroout ) {
+			_m.outvoronoi( _out );
+		}
+
+
+		tv[ 11 ] = clock();
+
+		if ( !_b->quiet ) {
+			printf( "\nOutput seconds:  %g\n", ( (REAL)( tv[ 11 ] - tv[ 10 ] ) ) / cps );
+			printf( "Total running seconds:  %g\n", ( (REAL)( tv[ 11 ] - tv[ 0 ] ) ) / cps );
+		}
+
+		if ( _b->docheck ) {
+			_m.checkmesh( 0 );
+			if ( _b->plc || _b->refine ) {
+				_m.checkshells();
+				_m.checksegments();
+			}
+			if ( _b->docheck > 1 ) {
+				_m.checkdelaunay();
+			}
+		}
+
+		if ( !_b->quiet ) {
+			_m.statistics();
+		}
+	}
+	void pts2tetgen( const vector<point> _P, tetgenio& _tetio )
+	{
+		if ( _tetio.numberofpoints != _P.size() )
+		{
+			if ( _tetio.pointlist )
+				delete [] _tetio.point2tetlist;
+			_tetio.pointlist = new REAL[ 3 * _P.size() ];
+		}
+		for ( auto i = 0; i < _P.size(); )
+		{
+			auto p = _P[ i ];
+			_tetio.pointlist[ i ] = p[ 0 ];
+			_tetio.pointlist[ i + 1 ] = p[ 1 ];
+			_tetio.pointlist[ i + 2 ] = p[ 2 ];
+			i += 3;
+		}
+	}
+	void computeVD( const shared_ptr<Volume3DScalar>& _vol, VoroInfo & _voro )
+	{
+		vector<point> sites;
+		Surfacer surf;
+		surf.extractBoundaryVts( _vol, sites );
+	}
+	void computeVD( tetgenio & _tet_in, VoroInfo & _voro, shared_ptr<Volume3DScalar> _vol )
+	{
+		char* tet_args = "NEFv"; // don't need tets, but want voronoi
+		tetgenio tet_out;
+		/*tetgenmesh tet_msh;
+		my_tetrahedralize( tet_args, &_tet_in, &tet_out, tet_msh );*/
+		tetrahedralize( tet_args, &_tet_in, &tet_out );
+		
+		// set sites to voro
+		vector<point> sites;
+		for ( auto i = 0; i < _tet_in.numberofpoints; )
+		{
+			sites.emplace_back( sites[ i ], sites[ i + 1 ], sites[ i + 2 ] );
+			i += 3;
+		}
+		_voro.setSitesPositions( sites );
+		sites.clear();
+		_voro.loadFromTetgenFiles( tet_out, _vol );
+	}
 	bool preprocessVoro( VoroInfo & _voro, const shared_ptr<Volume3DScalar>& _vol, bool _need_euler )
 	{
 		timer t_tagging, t_merging, t_compute_msure;

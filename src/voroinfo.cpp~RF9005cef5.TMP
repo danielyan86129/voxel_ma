@@ -89,7 +89,7 @@ namespace voxelvoro {
 		*/
 		cout << "computing info related to sites..." << endl;
 		computeInfoRelatedtoSites();
-		cout << "time(I/O) -> load voro from tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
+		cout << "time(I/O) -> read tetgen files: " << t_IO.elapseMilli().count() << " ms" << endl;
 		//cout << "time -> infer sites from cell: " << t_infer_sites.elapseMilli().count() << " ms" << endl;
 		
 		/* TODO: make sure this always works
@@ -193,44 +193,14 @@ namespace voxelvoro {
 						goto NEXT_FACE;
 					else
 						eid = old_new_e_map[ eid ];
-					f_erep[ j ] = eid;
 				}
-			else // else, need to deal with infinite side
-			{
-				if ( f_erep.back() == -1 )
-				{
-					// use adjacent 2 half-infinite edges to create this new edge
-					auto e1 = geom().getEdge( f_erep.front() );
-					auto e2 = geom().getEdge( *( f_erep.end() - 2 ) );
-					assert( !isVertexFinite( e1[ 1 ] ) && !isVertexFinite( e2[ 1 ] ) );
-					auto new_e = util::makeEdge( e1[ 1 ], e2[ 1 ] );
-					m_geom.appendEdge( new_e );
-					m_is_finite_e.push_back( false );
-					f_erep.back() = geom().numEdges() - 1;
-					m_is_finite_f.push_back( false );
-				}
-				else
-					m_is_finite_f.push_back( true );
-			}
-			f_vts.resize( nsides );
-			trace_face( f_erep, m_geom.m_edges, f_vts );
-			m_geom.appendFace( f_vts );
-			// save sites for this face
-			m_face_sites.push_back( ivec2( s1, s2 ) );
-
-		NEXT_FACE: // refer to this label to quickly skip this face
-			;
+			NEXT_FACE:
 		}
-		m_face_sites.shrink_to_fit();
-		m_is_finite_f.shrink_to_fit();
-		if ( _vol )
-			set_only_inside( true );
-		cout << "computing info related to sites..." << endl;
-		computeInfoRelatedtoSites();
 
 		t.stop();
 
-		cout << "time -> load voro from tetgen: " << t.elapseMilli().count() << " ms" << endl;
+		if ( _vol )
+			set_only_inside( true );
 		return true;
 	}
 

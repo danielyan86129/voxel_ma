@@ -191,7 +191,7 @@ namespace voxelvoro
 		}
 		t_write_bndry.stop();
 
-		cout << "time(I/O) -> extract boundary pts: " << t_extract_bndry.elapseMilli().count() <<" ms"<< endl;
+		cout << "time -> extract boundary pts: " << t_extract_bndry.elapseMilli().count() <<" ms"<< endl;
 		cout << "time(I/O) -> write boundary pts: " << t_write_bndry.elapseMilli().count() << " ms" << endl;
 		if ( mesh_retcode && ( nodes_retcode == ExportErrCode::SUCCESS ) )
 		{

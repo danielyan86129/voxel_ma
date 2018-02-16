@@ -7,6 +7,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <tetgen.h>
+
 //#include <volume.h> // Tao's volume
 #include "Volume3DScalar.h"
 
@@ -45,6 +47,9 @@ namespace voxelvoro
 		//
 		// load in voro info from related tetgen files with the given base name
 		bool loadFromTetgenFiles( const char* _file_basename, shared_ptr<Volume3DScalar> _vol= nullptr );
+		//
+		// load in voro info from given tetgen structure
+		bool loadFromTetgenFiles( const tetgenio& _tetio, shared_ptr<Volume3DScalar> _vol = nullptr );
 		//
 		// init from given information
 		void setInfo(
