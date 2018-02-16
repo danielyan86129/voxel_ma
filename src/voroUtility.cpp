@@ -344,7 +344,7 @@ void main( int _argc, char * _argv[] )
 	{
 		if ( n_remain_args < 2 )
 		{
-			cout << "wrong args: expecting <in:volume-name> <out:mesh-name>" << endl;
+			cout << "wrong args: expecting <in: volume name> <out: MA meshname>" << endl;
 			goto FAILURE;
 		}
 		else
@@ -359,10 +359,9 @@ void main( int _argc, char * _argv[] )
 				goto FAILURE;
 			}
 
-			vector<point> sites;
 			cout << "Computing voro ..." << endl;
 			voxelvoro::VoroInfo voro;
-			voxelvoro::computeVD( sites, voro, vol );
+			voxelvoro::computeVD( vol, voro );
 			cout << "Done: voro computed." << endl;
 
 			cout << "Preprocessing voro... " << endl;
@@ -374,10 +373,10 @@ void main( int _argc, char * _argv[] )
 			cout << "Done: voro preprocessed." << endl;
 
 			cout << "Writing inside voro to mesh file ..." << endl;
-			auto voromesh_file = string( _argv[ cur_arg_idx + 2 ] );
-			auto voromesh_filebase = voromesh_file.substr( 0, ( voromesh_file.find_last_of( '.' ) ) );
+			string vorocore_file = _argv[ cur_arg_idx + 1 ];
+			auto vorocore_filebase = vorocore_file.substr( 0, ( vorocore_file.find_last_of( '.' ) ) );
 			if (
-				voxelvoro::exportInsideVoroMesh( voro, vol, voromesh_file.c_str(),
+				voxelvoro::exportInsideVoroMesh( voro, vol, vorocore_file.c_str(),
 					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, true/*inside only*/, false/*finite only*/,
 					split( FLAGS_tt, ',' ) ) == voxelvoro::ExportErrCode::SUCCESS
 				)
@@ -392,7 +391,7 @@ void main( int _argc, char * _argv[] )
 			// optionally write out a radii file
 			if ( voro.radiiValid() )
 			{
-				auto radii_filename = voromesh_filebase + ".r";
+				auto radii_filename = vorocore_filebase + ".r";
 				cout << "writing radii to file " << radii_filename << endl;
 				if ( voxelvoro::writeRadiiToFile( voro, radii_filename.c_str(), vol->getVoxToModelMat() )
 					== voxelvoro::ExportErrCode::SUCCESS )
@@ -421,7 +420,7 @@ void main( int _argc, char * _argv[] )
 					mcmsure_filename = FLAGS_mcBase + ".bt2.msure";
 				cout << "measure file: " << mcmsure_filename << endl;
 				auto mcorder_filename = FLAGS_mcBase + ".mcorder";
-				auto output_filename = std::string( basename ) + "." + mcmsure_name + ".msure";
+				auto output_filename = std::string( vorocore_filebase ) + "." + mcmsure_name + ".msure";
 				auto retcode = voxelvoro::exportScalarFieldOnVoxelSurface(
 					mcgeom_filename.c_str(),
 					mcmsure_filename == "" ? nullptr : mcmsure_filename.c_str(),
@@ -436,7 +435,7 @@ void main( int _argc, char * _argv[] )
 			if ( FLAGS_outToMat )
 			{
 				// debug info required.
-				auto matfilename = voromesh_filebase + "_voro_mat.txt";
+				auto matfilename = vorocore_filebase + "_voro_mat.txt";
 				voro.outputToMathematica( matfilename.c_str() );
 			}
 			if ( FLAGS_outToDotma )

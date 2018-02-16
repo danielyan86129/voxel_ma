@@ -118,7 +118,7 @@ namespace voxelvoro {
 		const REAL* vpts = _tetio.vpointlist;
 		for ( size_t i = 0; i < _tetio.numberofvpoints; ++i )
 		{
-			point v( vpts[ i ], vpts[ i + 1 ], vpts[ i + 2 ] );
+			point v( vpts[ i * 3 ], vpts[ i * 3 + 1 ], vpts[ i * 3 + 2 ] );
 			if (_vol && this->tagVert(v, _vol) == false )
 				continue;
 			if ( _vol )

@@ -379,20 +379,30 @@ namespace voxelvoro
 				delete [] _tetio.point2tetlist;
 			_tetio.pointlist = new REAL[ 3 * _P.size() ];
 		}
-		for ( auto i = 0; i < _P.size(); )
+		for ( auto i = 0; i < _P.size(); ++i )
 		{
 			auto p = _P[ i ];
-			_tetio.pointlist[ i ] = p[ 0 ];
-			_tetio.pointlist[ i + 1 ] = p[ 1 ];
-			_tetio.pointlist[ i + 2 ] = p[ 2 ];
-			i += 3;
+			_tetio.pointlist[ i * 3 + 0 ] = p[ 0 ];
+			_tetio.pointlist[ i * 3 + 1 ] = p[ 1 ];
+			_tetio.pointlist[ i * 3 + 2 ] = p[ 2 ];
 		}
+		_tetio.numberofpoints = _P.size();
 	}
 	void computeVD( const shared_ptr<Volume3DScalar>& _vol, VoroInfo & _voro )
 	{
+		timer t;
 		vector<point> sites;
 		Surfacer surf;
+
+		t.start();
+		cout << "extracting sites from voxel boundary..." << endl;
 		surf.extractBoundaryVts( _vol, sites );
+		printf( "Done: extracted sites %d \n", sites.size() );
+		tetgenio tet_io;
+		pts2tetgen( sites, tet_io );
+		t.stop();
+		cout << "time -> preparing for VD: " << t.elapseMilli().count() << endl;
+		computeVD( tet_io, _voro, _vol );
 	}
 	void computeVD( tetgenio & _tet_in, VoroInfo & _voro, shared_ptr<Volume3DScalar> _vol )
 	{
@@ -404,10 +414,12 @@ namespace voxelvoro
 		
 		// set sites to voro
 		vector<point> sites;
-		for ( auto i = 0; i < _tet_in.numberofpoints; )
+		for ( auto i = 0; i < _tet_in.numberofpoints; ++i )
 		{
-			sites.emplace_back( sites[ i ], sites[ i + 1 ], sites[ i + 2 ] );
-			i += 3;
+			sites.emplace_back( 
+				_tet_in.pointlist[ i * 3 ],
+				_tet_in.pointlist[ i * 3 + 1 ],
+				_tet_in.pointlist[ i * 3 + 2 ] );
 		}
 		_voro.setSitesPositions( sites );
 		sites.clear();

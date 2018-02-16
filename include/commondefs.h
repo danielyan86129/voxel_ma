@@ -128,6 +128,7 @@ struct timer
 	// ctor
 	timer()
 	{
+		d = duration::zero();
 		m_accum_time = false;
 	}
 	// start timer from a fresh state
