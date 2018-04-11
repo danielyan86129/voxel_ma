@@ -13,7 +13,7 @@ namespace voxelvoro
 	// my version of making a tetgenmesh from a tetgenio
 	void my_tetrahedralize( char *switches, tetgenio *_in, tetgenio *out,
 		tetgenmesh& m,
-		tetgenio *addin = NULL, tetgenio *bgmin = NULL );
+		tetgenio *addin = nullptr, tetgenio *bgmin = nullptr );
 	void my_tetrahedralize( tetgenbehavior *_b, tetgenio *_in, tetgenio *_out,
 		tetgenmesh& _m,
 		tetgenio *_addin = nullptr, tetgenio *_bgmin = nullptr );
@@ -31,9 +31,9 @@ namespace voxelvoro
 	void computeVD( tetgenio& _tet_in, 
 		VoroInfo& _voro, 
 		shared_ptr<Volume3DScalar> _vol = nullptr );
-	void computeVD( const vector<point>& _sites, 
+	/*void computeVD( const vector<point>& _sites, 
 		VoroInfo& _voro, 
-		shared_ptr<Volume3DScalar> _vol = nullptr );
+		shared_ptr<Volume3DScalar> _vol = nullptr );*/
 	//
 	// process voro diagram to properly tag its element (in-out)
 	// and simply degenerate elements

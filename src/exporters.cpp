@@ -305,18 +305,18 @@ namespace voxelvoro
 		vert_props[ "z" ] = { "z", Float32, Float32, offsetof( Vertex, z ), PLY_SCALAR, 0, 0, 0 };
 		if ( !_vts_msure.empty() )
 		{
-			vert_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Vertex, r ), PLY_SCALAR, 0, 0, 0 };
+			/*vert_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Vertex, r ), PLY_SCALAR, 0, 0, 0 };
 			vert_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Vertex, g ), PLY_SCALAR, 0, 0, 0 };
-			vert_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Vertex, b ), PLY_SCALAR, 0, 0, 0 };
+			vert_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Vertex, b ), PLY_SCALAR, 0, 0, 0 };*/
 		}
 		std::map<std::string, PlyProperty> edge_props;
 		edge_props[ "vertex1" ] = { "vertex1", Int32, Int32, offsetof( Edge, v1 ), PLY_SCALAR, 0, 0, 0 };
 		edge_props[ "vertex2" ] = { "vertex2", Int32, Int32, offsetof( Edge, v2 ), PLY_SCALAR, 0, 0, 0 };
 		if (!_edges_msure.empty() )
 		{
-			edge_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Edge, r ), PLY_SCALAR, 0, 0, 0 };
+			/*edge_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Edge, r ), PLY_SCALAR, 0, 0, 0 };
 			edge_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Edge, g ), PLY_SCALAR, 0, 0, 0 };
-			edge_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Edge, b ), PLY_SCALAR, 0, 0, 0 };
+			edge_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Edge, b ), PLY_SCALAR, 0, 0, 0 };*/
 		}
 		std::map<std::string, PlyProperty> face_props;
 		face_props[ "vertex_indices" ] = {
@@ -327,6 +327,7 @@ namespace voxelvoro
 			face_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Face, r ), PLY_SCALAR, 0, 0, 0 };
 			face_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Face, g ), PLY_SCALAR, 0, 0, 0 };
 			face_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Face, b ), PLY_SCALAR, 0, 0, 0 };
+			face_props[ "msure" ] = { "msure", Float32, Float32, offsetof( Face, s ), PLY_SCALAR, 0,0,0 };
 		}
 		vector<Vertex> output_vts( _output_vts.size() );
 		vector<Edge> output_edges( _output_edges.size() );
@@ -339,14 +340,14 @@ namespace voxelvoro
 			o_p.x = _output_vts[ i ][ 0 ];
 			o_p.y = _output_vts[ i ][ 1 ];
 			o_p.z = _output_vts[ i ][ 2 ];
-			if ( !_vts_msure.empty() )
+			/*if ( !_vts_msure.empty() )
 			{
 				RGBColor c = (RGBColor)util::GetColour(
 					_vts_msure[ i ], *min_max_msure.first, *min_max_msure.second );
 				o_p.r = c.r();
 				o_p.g = c.g();
 				o_p.b = c.b();
-			}
+			}*/
 		}
 		min_max_msure = std::minmax_element( _edges_msure.begin(), _edges_msure.end() );
 		for ( auto i = 0; i < output_edges.size(); ++i )
@@ -354,14 +355,14 @@ namespace voxelvoro
 			auto& o_e = output_edges[ i ];
 			o_e.v1 = _output_edges[ i ][ 0 ];
 			o_e.v2 = _output_edges[ i ][ 1 ];
-			if (!_edges_msure.empty() )
+			/*if (!_edges_msure.empty() )
 			{
 				RGBColor c = (RGBColor)util::GetColour(
 					_edges_msure[ i ], *min_max_msure.first, *min_max_msure.second );
 				o_e.r = c.r();
 				o_e.g = c.g();
 				o_e.b = c.b();
-			}
+			}*/
 		}
 		min_max_msure = std::minmax_element( _faces_msure.begin(), _faces_msure.end() );
 		for ( auto i = 0; i < output_faces.size(); ++i )
@@ -378,6 +379,7 @@ namespace voxelvoro
 				o_f.r = c.r();
 				o_f.g = c.g();
 				o_f.b = c.b();
+				o_f.s = _faces_msure[ i ];
 			}
 		}
 

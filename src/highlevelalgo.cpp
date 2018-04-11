@@ -9,7 +9,6 @@
 #include "surfacing.h"
 #include "octree.h"
 #include "voxelapps.h"
-#include "..\include\highlevelalgo.h"
 
 using trimesh::TriMesh;
 
