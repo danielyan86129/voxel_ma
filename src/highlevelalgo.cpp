@@ -708,8 +708,13 @@ namespace voxelvoro
 						ccthin.getRemainedVts( vts_ids );
 						vector<float> radii;
 						const auto& R = _voro.getRadii();
+						auto orig_trans = _vol->getVoxToModelMat() * point( 0, 0, 0 );
 						for ( auto i : vts_ids )
-							radii.push_back( R[ i ] );
+						{
+							// transform r
+							float r = trimesh::len( ( _vol->getVoxToModelMat() * point( R[ i ] ) ) - orig_trans );
+							radii.push_back( r );
+						}
 						// assemble all edges
 						unique_edges.clear();
 						ivec2 es_f[ 3 ];
