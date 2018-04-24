@@ -35,6 +35,11 @@ namespace voxelvoro
 	// write the given list of vertices to an output file (tetgen's .node file)
 	ExportErrCode writeToTetnodes( const vector<point>& _vts, const char* _outfile_name );
 	//
+	// write given geometry & radius-per-vertex to the given .ma file (qmat file format)
+	ExportErrCode writeToDotma( const string& _dotma_filename,
+		const vector<point>& _vts, const vector<ivec2> _all_edges, const vector<uTriFace>& _tri_faces,
+		const vector<float>& _radii );
+	//
 	// write the inside part of a voro-diagram to .ma file (input format of QMAT)
 	ExportErrCode writeInsideVoroToDotMA( const VoroInfo& _voro, const char* _dotma_file );
 	//

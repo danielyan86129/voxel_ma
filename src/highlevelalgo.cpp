@@ -561,6 +561,7 @@ namespace voxelvoro
 		bool _need_euler,
 		bool _collapse_degenerate_edges,
 		bool _inside_only, bool _finite_only,
+		bool _out_qmat,
 		const vector<float>& _tt/*thinning threshold(s)*/ )
 	{
 		timer t_thin, t_write_IVD, t_write_thinIVD;
@@ -654,6 +655,9 @@ namespace voxelvoro
 				auto min_max_msure = std::minmax_element( faces_msure.begin(), faces_msure.end() );
 				cout << "range of measure: " << "[" << *min_max_msure.first << "," << *min_max_msure.second << "]" << endl;
 
+				// qmat file related vars
+				unordered_set<ivec2, ivec2Hash> unique_edges;
+
 				float eps = _voro.getInsidePartSize() * 0.000001f;
 				CellComplexThinning ccthin;
 				cellcomplex cc( vts_trans, edges, tri_faces );
@@ -687,16 +691,48 @@ namespace voxelvoro
 							goto END_PLY_BRANCH;
 						}
 
-						// output the thinned result to file
+						// output the thinned result to .ply file
 						vts_msure.clear(); edges_msure.clear(); faces_msure.clear();
-						std::string _thin_file = _mesh_file;
+						std::string thin_file = _mesh_file;
 						auto end_str = std::string( "_thinned" ) + std::to_string( t );
-						_thin_file.insert( _thin_file.find( ".ply" ), end_str );
-						cout << "writing remaining cc to file: " << _thin_file << endl;
+						thin_file.insert( thin_file.find( ".ply" ), end_str );
+						cout << "writing remaining cc to file: " << thin_file << endl;
 						t_write_thinIVD.start();
-						writeToPLY( _thin_file.c_str(), vts_trans, edges, tri_faces,
+						writeToPLY( thin_file.c_str(), vts_trans, edges, tri_faces,
 							vts_msure, edges_msure, faces_msure );
 						t_write_thinIVD.stop();
+
+						/*** output the thinned result to qmat .ma file ***/
+						// get radii
+						vector<int> vts_ids;
+						ccthin.getRemainedVts( vts_ids );
+						vector<float> radii;
+						const auto& R = _voro.getRadii();
+						for ( auto i : vts_ids )
+							radii.push_back( R[ i ] );
+						// assemble all edges
+						unique_edges.clear();
+						ivec2 es_f[ 3 ];
+						for (const auto& f : tri_faces )
+						{
+							util::makeEdgesFromTri( f, es_f );
+							unique_edges.insert( es_f[ 0 ] );
+							unique_edges.insert( es_f[ 1 ] );
+							unique_edges.insert( es_f[ 2 ] );
+						}
+						edges.insert( edges.end(), unique_edges.begin(), unique_edges.end() );
+						unique_edges.clear();
+						// write to qmat
+						auto dotmafilename = thin_file.substr( 0, ( thin_file.find_last_of( '.' ) ) ) + ".ma";
+						auto dotma_suc = writeToDotma( dotmafilename, vts_trans, edges, tri_faces, radii );
+						if ( dotma_suc == voxelvoro::ExportErrCode::SUCCESS )
+						{
+							cout << "Done: writing thinned voro-diagram to .ma file: " << dotmafilename << endl;
+						}
+						else
+						{
+							cout << "Error: failed to write thinned voro-diagram to .ma file." << endl;
+						}
 					} // pruning for one threshold
 				} // pruning for all thresholds in _tt list
 			} // local scope for goto to skip

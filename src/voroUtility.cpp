@@ -260,7 +260,8 @@ void main( int _argc, char * _argv[] )
 			auto voromesh_filebase = voromesh_file.substr( 0, ( voromesh_file.find_last_of( '.' ) ) );
 			if (
 				voxelvoro::exportInsideVoroMesh( voro, vol, voromesh_file.c_str(),
-					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, true/*inside only*/, false/*finite only*/,
+					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, 
+					true/*inside only*/, false/*finite only*/, FLAGS_outToDotma,
 					split(FLAGS_tt, ',') ) == voxelvoro::ExportErrCode::SUCCESS
 				)
 			{
@@ -321,22 +322,22 @@ void main( int _argc, char * _argv[] )
 				auto matfilename = voromesh_filebase + "_voro_mat.txt";
 				voro.outputToMathematica( matfilename.c_str() );
 			}
-			if ( FLAGS_outToDotma )
-			{
-				// output voro to a .ma file
-				std::string vol_file = _argv[ 1 ];
-				auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
-				cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
-				if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
-					== voxelvoro::ExportErrCode::SUCCESS )
-				{
-					cout << "Done: writing voro-diagram to .ma file." << endl;
-				}
-				else
-				{
-					cout << "Error: failed to write voro-diagram to .ma file." << endl;
-				}
-			}
+			//if ( FLAGS_outToDotma )
+			//{
+			//	// output voro to a .ma file
+			//	std::string vol_file = _argv[ 1 ];
+			//	auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
+			//	cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
+			//	if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
+			//		== voxelvoro::ExportErrCode::SUCCESS )
+			//	{
+			//		cout << "Done: writing voro-diagram to .ma file." << endl;
+			//	}
+			//	else
+			//	{
+			//		cout << "Error: failed to write voro-diagram to .ma file." << endl;
+			//	}
+			//}
 			goto SUCCESS;
 		}
 	}
@@ -377,7 +378,8 @@ void main( int _argc, char * _argv[] )
 			auto vorocore_filebase = vorocore_file.substr( 0, ( vorocore_file.find_last_of( '.' ) ) );
 			if (
 				voxelvoro::exportInsideVoroMesh( voro, vol, vorocore_file.c_str(),
-					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, true/*inside only*/, false/*finite only*/,
+					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, 
+					true/*inside only*/, false/*finite only*/, FLAGS_outToDotma,
 					split( FLAGS_tt, ',' ) ) == voxelvoro::ExportErrCode::SUCCESS
 				)
 			{
@@ -438,22 +440,22 @@ void main( int _argc, char * _argv[] )
 				auto matfilename = vorocore_filebase + "_voro_mat.txt";
 				voro.outputToMathematica( matfilename.c_str() );
 			}
-			if ( FLAGS_outToDotma )
-			{
-				// output voro to a .ma file
-				std::string vol_file = _argv[ 1 ];
-				auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
-				cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
-				if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
-					== voxelvoro::ExportErrCode::SUCCESS )
-				{
-					cout << "Done: writing voro-diagram to .ma file." << endl;
-				}
-				else
-				{
-					cout << "Error: failed to write voro-diagram to .ma file." << endl;
-				}
-			}
+			//if ( FLAGS_outToDotma )
+			//{
+			//	// output voro to a .ma file
+			//	std::string vol_file = _argv[ 1 ];
+			//	auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
+			//	cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
+			//	if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
+			//		== voxelvoro::ExportErrCode::SUCCESS )
+			//	{
+			//		cout << "Done: writing voro-diagram to .ma file." << endl;
+			//	}
+			//	else
+			//	{
+			//		cout << "Error: failed to write voro-diagram to .ma file." << endl;
+			//	}
+			//}
 			goto SUCCESS;
 		}
 	}

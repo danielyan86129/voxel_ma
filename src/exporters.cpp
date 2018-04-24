@@ -224,6 +224,52 @@ namespace voxelvoro
 		return ExportErrCode::SUCCESS;
 	}
 
+	ExportErrCode writeToDotma( const string& _dotma_filename,
+		const vector<point>& _vts, const vector<ivec2> _all_edges, const vector<uTriFace>& _tri_faces,
+		const vector<float>& _radii )
+	{
+		ofstream ofile( _dotma_filename );
+		if ( !ofile.is_open() )
+		{
+			cout << "Error: cannot open " << _dotma_filename << endl;
+			return ExportErrCode::FAILURE;
+		}
+
+		// write out the file's header (some simple stats)
+		ofile
+			<< _vts.size() << " "
+			<< _all_edges.size() << " "
+			<< _tri_faces.size() << endl;
+
+		// write out all vts & associated radius
+		float r_min = std::numeric_limits<float>::max();
+		float r_max = -999.0f;
+		for ( auto i  = 0; i < _vts.size(); ++i )
+		{
+			const auto& v = _vts[i];
+			auto r = _radii[ i ];
+			r_min = std::min( r, r_min );
+			r_max = std::max( r, r_max );
+			ofile << "v " << v[ 0 ] << " " << v[ 1 ] << " " << v[ 2 ] << " " << r << endl;
+		}
+		//cout << "range of radius: [" << r_min << ", " << r_max << "]" << endl;
+
+		// write out all edges
+		for ( auto it = _all_edges.begin(); it != _all_edges.end(); ++it )
+		{
+			ofile << "e " << ( *it )[ 0 ] << " " << ( *it )[ 1 ] << endl;
+		}
+
+		// write out all faces
+		for ( const auto& t : _tri_faces )
+		{
+			ofile << "f " << t[ 0 ] << " " << t[ 1 ] << " " << t[ 2 ] << endl;
+		}
+
+		ofile.close();
+
+		return ExportErrCode::SUCCESS;
+	}
 	ExportErrCode writeInsideVoroToDotMA( const VoroInfo & _voro, const char * _dotma_filename )
 	{
 		vector<int> vts_indices;
