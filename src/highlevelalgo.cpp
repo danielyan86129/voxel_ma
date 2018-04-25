@@ -712,7 +712,7 @@ namespace voxelvoro
 						for ( auto i : vts_ids )
 						{
 							// transform r
-							float r = trimesh::len( ( _vol->getVoxToModelMat() * point( R[ i ] ) ) - orig_trans );
+							float r = trimesh::len( ( _vol->getVoxToModelMat() * point( R[ i ], 0, 0 ) ) - orig_trans );
 							radii.push_back( r );
 						}
 						// assemble all edges

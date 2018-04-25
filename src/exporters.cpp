@@ -477,7 +477,7 @@ namespace voxelvoro
 			{
 				auto r = radii[ i ];
 				// transform r
-				r = trimesh::len( ( _mat * point( r ) ) - orig_trans );
+				r = trimesh::len( ( _mat * point( r, 0, 0 ) ) - orig_trans );
 				auto v = _voro.geom().getVert(i);
 				v = _mat * v;
 				rfile << v[ 0 ] << " " << v[ 1 ] << " " << v[ 2 ] << " " << r << endl;
