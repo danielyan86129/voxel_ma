@@ -703,40 +703,43 @@ namespace voxelvoro
 						t_write_thinIVD.stop();
 
 						/*** output the thinned result to qmat .ma file ***/
-						// get radii
-						vector<int> vts_ids;
-						ccthin.getRemainedVts( vts_ids );
-						vector<float> radii;
-						const auto& R = _voro.getRadii();
-						auto orig_trans = _vol->getVoxToModelMat() * point( 0, 0, 0 );
-						for ( auto i : vts_ids )
+						if ( _out_qmat )
 						{
-							// transform r
-							float r = trimesh::len( ( _vol->getVoxToModelMat() * point( R[ i ], 0, 0 ) ) - orig_trans );
-							radii.push_back( r );
-						}
-						// assemble all edges
-						unique_edges.clear();
-						ivec2 es_f[ 3 ];
-						for (const auto& f : tri_faces )
-						{
-							util::makeEdgesFromTri( f, es_f );
-							unique_edges.insert( es_f[ 0 ] );
-							unique_edges.insert( es_f[ 1 ] );
-							unique_edges.insert( es_f[ 2 ] );
-						}
-						edges.insert( edges.end(), unique_edges.begin(), unique_edges.end() );
-						unique_edges.clear();
-						// write to qmat
-						auto dotmafilename = thin_file.substr( 0, ( thin_file.find_last_of( '.' ) ) ) + ".ma";
-						auto dotma_suc = writeToDotma( dotmafilename, vts_trans, edges, tri_faces, radii );
-						if ( dotma_suc == voxelvoro::ExportErrCode::SUCCESS )
-						{
-							cout << "Done: writing thinned voro-diagram to .ma file: " << dotmafilename << endl;
-						}
-						else
-						{
-							cout << "Error: failed to write thinned voro-diagram to .ma file." << endl;
+							// get radii
+							vector<int> vts_ids;
+							ccthin.getRemainedVts( vts_ids );
+							vector<float> radii;
+							const auto& R = _voro.getRadii();
+							auto orig_trans = _vol->getVoxToModelMat() * point( 0, 0, 0 );
+							for ( auto i : vts_ids )
+							{
+								// transform r
+								float r = trimesh::len( ( _vol->getVoxToModelMat() * point( R[ i ], 0, 0 ) ) - orig_trans );
+								radii.push_back( r );
+							}
+							// assemble all edges
+							unique_edges.clear();
+							ivec2 es_f[ 3 ];
+							for ( const auto& f : tri_faces )
+							{
+								util::makeEdgesFromTri( f, es_f );
+								unique_edges.insert( es_f[ 0 ] );
+								unique_edges.insert( es_f[ 1 ] );
+								unique_edges.insert( es_f[ 2 ] );
+							}
+							edges.insert( edges.end(), unique_edges.begin(), unique_edges.end() );
+							unique_edges.clear();
+							// write to qmat
+							auto dotmafilename = thin_file.substr( 0, ( thin_file.find_last_of( '.' ) ) ) + ".ma";
+							auto dotma_suc = writeToDotma( dotmafilename, vts_trans, edges, tri_faces, radii );
+							if ( dotma_suc == voxelvoro::ExportErrCode::SUCCESS )
+							{
+								cout << "Done: writing thinned voro-diagram to .ma file: " << dotmafilename << endl;
+							}
+							else
+							{
+								cout << "Error: failed to write thinned voro-diagram to .ma file." << endl;
+							}
 						}
 					} // pruning for one threshold
 				} // pruning for all thresholds in _tt list
