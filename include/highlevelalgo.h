@@ -53,7 +53,7 @@ namespace voxelvoro
 		const char* _output_filename,
 		const char* _mc_msure_type,
 		float _smooth_r,
-		VoroInfo& _voro );
+		const VoroInfo& _voro );
 	//
 	// extract and export the part of the voro-info object that's "inside" the volume
 	ExportErrCode exportInsideVoroMesh( 
@@ -63,6 +63,8 @@ namespace voxelvoro
 		bool _need_euler, 
 		bool _collapse_degenerate_edges, 
 		bool _inside_only, bool _finite_only,
+		int _full_or_thin, /*0: thin, 1: full, 2: both*/
+		bool _write_attrib,
 		bool _out_qmat,
 		const vector<float>& _tt/*thinning threshold(s)*/ );
 	//

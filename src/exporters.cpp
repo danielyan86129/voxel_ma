@@ -86,7 +86,8 @@ namespace voxelvoro
 		return ret;
 	}
 
-	ExportErrCode writeVolumeAsBoundaryMesh( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, bool _need_euler)
+	ExportErrCode writeVolumeAsBoundaryMesh( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, 
+		bool _need_euler, bool _write_node )
 	{
 		timer t_extract_bndry, t_write_bndry;
 		Surfacer surf;
@@ -125,25 +126,25 @@ namespace voxelvoro
 			mesh.faces.push_back( trimesh::TriMesh::Face( f[ 0 ], f[ 1 ], f[ 2 ] ) );
 		}
 
-		auto mesh_success = mesh.write( std::string( _outfile_base ) + ".off" );
 		t_write_bndry.start();
-		auto nodes_errcode = writeToTetnodes( bndry_vts, (std::string(_outfile_base) + ".node").c_str() );
+		auto mesh_success = mesh.write( std::string( _outfile_base ) + ".off" );
+		auto nodes_err = ExportErrCode::SUCCESS;
+		if (_write_node )
+			nodes_err = writeToTetnodes( bndry_vts, (std::string(_outfile_base) + ".node").c_str() );
 		t_write_bndry.stop();
 		cout << "time(I/O) -> extract boundary pts: " << t_extract_bndry.elapseMilli().count() << " ms" << endl;
 		cout << "time(I/O) -> write boundary pts: " << t_write_bndry.elapseMilli().count() << " ms" << endl;
-		if ( mesh_success && (nodes_errcode == ExportErrCode::SUCCESS) )
+		if ( mesh_success && ( nodes_err == ExportErrCode::SUCCESS) )
 		{
 			return ExportErrCode::SUCCESS;
 		}
 		else
 		{
-			return nodes_errcode;
+			return mesh_success ? nodes_err : ExportErrCode::FAILURE;
 		}
-
-		//return ExportErrCode::SUCCESS;
 	}
 
-	ExportErrCode writeVolumeAsBoundaryPts( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base )
+	ExportErrCode writeVolumeAsBoundaryPts( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, bool _write_node )
 	{
 		timer t_extract_bndry, t_write_bndry;
 		Surfacer surf;
@@ -181,26 +182,23 @@ namespace voxelvoro
 		}
 
 		// output vts to .node file in voxel space (so that tetgen result is more robust)
-		t_write_bndry.start();
-		auto nodefile = ( std::string( _outfile_base ) + ".node" );
-		cout << "writing boundary vts to \"" << nodefile << "\"..." << endl;
-		auto nodes_retcode = writeToTetnodes( bndry_vts, nodefile.c_str() );
-		if ( nodes_retcode != ExportErrCode::SUCCESS )
+		if (_write_node)
 		{
-			cout << "Error: failed to write boundary vts to .node file." << endl;
+			t_write_bndry.start();
+			auto nodefile = ( std::string( _outfile_base ) + ".node" );
+			cout << "writing boundary vts to \"" << nodefile << "\"..." << endl;
+			auto nodes_retcode = writeToTetnodes( bndry_vts, nodefile.c_str() );
+			if ( nodes_retcode != ExportErrCode::SUCCESS )
+			{
+				cout << "Error: failed to write boundary vts to .node file." << endl;
+				return nodes_retcode;
+			}
 		}
 		t_write_bndry.stop();
 
 		cout << "time -> extract boundary pts: " << t_extract_bndry.elapseMilli().count() <<" ms"<< endl;
 		cout << "time(I/O) -> write boundary pts: " << t_write_bndry.elapseMilli().count() << " ms" << endl;
-		if ( mesh_retcode && ( nodes_retcode == ExportErrCode::SUCCESS ) )
-		{
-			return ExportErrCode::SUCCESS;
-		}
-		else
-		{
-			return nodes_retcode;
-		}
+		return mesh_retcode ? ExportErrCode::SUCCESS : ExportErrCode::FAILURE;
 	}
 
 	ExportErrCode writeToTetnodes( const vector<point>& _vts, const char * _outfile_name )
@@ -322,9 +320,10 @@ namespace voxelvoro
 		return ExportErrCode::SUCCESS;
 	}
 
-	ExportErrCode writeToPLY( const char * _ply_filename, 
-		const vector<point>& _output_vts, const vector<ivec2>& _output_edges, const vector<uTriFace>& _output_tris, 
-		const vector<float>& _vts_msure, const vector<float>& _edges_msure, const vector<float>& _faces_msure )
+	ExportErrCode writeToPLY( const char* _ply_filename,
+		const vector<point>& _output_vts, const vector<ivec2>& _output_edges, const vector<uTriFace>& _output_tris,
+		const vector<float>& _vts_msure, const vector<float>& _edges_msure, const vector<float>& _faces_msure,
+		bool _write_sites, const vector<point>* _sites, const vector<ivec2>* _face_sites_ids )
 	{
 		struct Vertex
 		{
@@ -342,8 +341,10 @@ namespace voxelvoro
 		{
 			unsigned char nvts;
 			int verts[ 3 ];
-			unsigned char r, g, b;
+			unsigned char sites_l; // len of sites array
+			float sites[ 6 ]; // 2*3 coords for two sites positions
 			float s; // measure
+			unsigned char r, g, b; // pseudo-color of measure
 		};
 		std::map<std::string, PlyProperty> vert_props;
 		vert_props[ "x" ] = { "x", Float32, Float32, offsetof( Vertex, x ), PLY_SCALAR, 0, 0, 0 };
@@ -358,7 +359,7 @@ namespace voxelvoro
 		std::map<std::string, PlyProperty> edge_props;
 		edge_props[ "vertex1" ] = { "vertex1", Int32, Int32, offsetof( Edge, v1 ), PLY_SCALAR, 0, 0, 0 };
 		edge_props[ "vertex2" ] = { "vertex2", Int32, Int32, offsetof( Edge, v2 ), PLY_SCALAR, 0, 0, 0 };
-		if (!_edges_msure.empty() )
+		if ( !_edges_msure.empty() )
 		{
 			/*edge_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Edge, r ), PLY_SCALAR, 0, 0, 0 };
 			edge_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Edge, g ), PLY_SCALAR, 0, 0, 0 };
@@ -368,12 +369,16 @@ namespace voxelvoro
 		face_props[ "vertex_indices" ] = {
 			"vertex_indices", Int32, Int32, offsetof( Face, verts ),
 			PLY_LIST, Uint8, Uint8, offsetof( Face,nvts ) };
-		if (!_faces_msure.empty() )
+		if ( !_faces_msure.empty() )
 		{
-			face_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Face, r ), PLY_SCALAR, 0, 0, 0 };
-			face_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Face, g ), PLY_SCALAR, 0, 0, 0 };
-			face_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Face, b ), PLY_SCALAR, 0, 0, 0 };
 			face_props[ "msure" ] = { "msure", Float32, Float32, offsetof( Face, s ), PLY_SCALAR, 0,0,0 };
+			/*face_props[ "red" ] = { "red", Uint8, Uint8, offsetof( Face, r ), PLY_SCALAR, 0, 0, 0 };
+			face_props[ "green" ] = { "green", Uint8, Uint8, offsetof( Face, g ), PLY_SCALAR, 0, 0, 0 };
+			face_props[ "blue" ] = { "blue", Uint8, Uint8, offsetof( Face, b ), PLY_SCALAR, 0, 0, 0 };*/
+		}
+		if ( _write_sites )
+		{
+			face_props[ "sites" ] = { "sites", Float32, Float32, offsetof( Face, sites ), PLY_LIST, Uint8, Uint8, offsetof( Face, sites_l ) };
 		}
 		vector<Vertex> output_vts( _output_vts.size() );
 		vector<Edge> output_edges( _output_edges.size() );
@@ -388,11 +393,11 @@ namespace voxelvoro
 			o_p.z = _output_vts[ i ][ 2 ];
 			/*if ( !_vts_msure.empty() )
 			{
-				RGBColor c = (RGBColor)util::GetColour(
-					_vts_msure[ i ], *min_max_msure.first, *min_max_msure.second );
-				o_p.r = c.r();
-				o_p.g = c.g();
-				o_p.b = c.b();
+			RGBColor c = (RGBColor)util::GetColour(
+			_vts_msure[ i ], *min_max_msure.first, *min_max_msure.second );
+			o_p.r = c.r();
+			o_p.g = c.g();
+			o_p.b = c.b();
 			}*/
 		}
 		min_max_msure = std::minmax_element( _edges_msure.begin(), _edges_msure.end() );
@@ -403,11 +408,11 @@ namespace voxelvoro
 			o_e.v2 = _output_edges[ i ][ 1 ];
 			/*if (!_edges_msure.empty() )
 			{
-				RGBColor c = (RGBColor)util::GetColour(
-					_edges_msure[ i ], *min_max_msure.first, *min_max_msure.second );
-				o_e.r = c.r();
-				o_e.g = c.g();
-				o_e.b = c.b();
+			RGBColor c = (RGBColor)util::GetColour(
+			_edges_msure[ i ], *min_max_msure.first, *min_max_msure.second );
+			o_e.r = c.r();
+			o_e.g = c.g();
+			o_e.b = c.b();
 			}*/
 		}
 		min_max_msure = std::minmax_element( _faces_msure.begin(), _faces_msure.end() );
@@ -418,14 +423,23 @@ namespace voxelvoro
 			o_f.verts[ 0 ] = _output_tris[ i ][ 0 ];
 			o_f.verts[ 1 ] = _output_tris[ i ][ 1 ];
 			o_f.verts[ 2 ] = _output_tris[ i ][ 2 ];
-			if (!_faces_msure.empty() )
+			if ( !_faces_msure.empty() )
 			{
-				RGBColor c = (RGBColor)util::GetColour(
-					_faces_msure[ i ], *min_max_msure.first, *min_max_msure.second );
+				o_f.s = _faces_msure[ i ];
+				/*RGBColor c = (RGBColor)util::GetColour(
+					o_f.s, *min_max_msure.first, *min_max_msure.second );
 				o_f.r = c.r();
 				o_f.g = c.g();
-				o_f.b = c.b();
-				o_f.s = _faces_msure[ i ];
+				o_f.b = c.b();*/
+			}
+			if ( _write_sites )
+			{
+				o_f.sites_l = 6;
+				auto site_ids = (*_face_sites_ids)[ i ];
+				auto s1 = (*_sites)[ site_ids[ 0 ] ];
+				auto s2 = ( *_sites )[ site_ids[ 1 ] ];
+				memcpy( o_f.sites, s1.data(), sizeof( float ) * 3 );
+				memcpy( &o_f.sites[3], s2.data(), sizeof( float ) * 3 );
 			}
 		}
 
@@ -445,7 +459,7 @@ namespace voxelvoro
 		return ExportErrCode::SUCCESS;
 	}
 
-	ExportErrCode writeRadiiToFile( const VoroInfo& _voro, const char * _r_file, const trimesh::xform& _mat )
+	ExportErrCode writeRadiiToFile( const VoroInfo& _voro, const char * _r_file, const trimesh::xform& _mat, const vector<int>* _ids_ptr )
 	{
 		if ( !_voro.radiiValid() )
 		{
@@ -462,23 +476,47 @@ namespace voxelvoro
 
 		timer t_IO;
 		t_IO.start();
-		// write only valid vertices' radii
-		int cnt = 0;
-		for ( size_t i = 0; i < _voro.geom().numVts(); ++i )
-			if ( _voro.isVertexValid( i ) )
-				cnt++;
-		rfile << cnt << endl;
-
-		const auto& radii = _voro.getRadii();
-		auto orig_trans = _mat *point( 0, 0, 0 );
-		for ( size_t i = 0; i < _voro.geom().numVts(); ++i )
+		int cnt;
+		if ( !_ids_ptr )
 		{
-			if ( _voro.isVertexValid( i ) )
+			// write only valid vertices' radii
+			cnt = 0;
+			for ( size_t i = 0; i < _voro.geom().numVts(); ++i )
+				if ( _voro.isVertexValid( i ) )
+					cnt++;
+			rfile << cnt << endl;
+
+			const auto& radii = _voro.getRadii();
+			auto orig_trans = _mat *point( 0, 0, 0 );
+			for ( size_t i = 0; i < _voro.geom().numVts(); ++i )
+			{
+				if ( _voro.isVertexValid( i ) )
+				{
+					auto r = radii[ i ];
+					// transform r
+					r = trimesh::len( ( _mat * point( r, 0, 0 ) ) - orig_trans );
+					auto v = _voro.geom().getVert( i );
+					v = _mat * v;
+					rfile << v[ 0 ] << " " << v[ 1 ] << " " << v[ 2 ] << " " << r << endl;
+					cnt++;
+				}
+			}
+		}
+		else
+		{
+			// write given set of vertices
+			const auto ids = *_ids_ptr;
+			cnt = ids.size();
+			rfile << cnt << endl;
+
+			const auto& radii = _voro.getRadii();
+			auto orig_trans = _mat *point( 0, 0, 0 );
+			for ( size_t i : ids )
 			{
 				auto r = radii[ i ];
 				// transform r
 				r = trimesh::len( ( _mat * point( r, 0, 0 ) ) - orig_trans );
-				auto v = _voro.geom().getVert(i);
+				auto v = _voro.geom().getVert( i );
 				v = _mat * v;
 				rfile << v[ 0 ] << " " << v[ 1 ] << " " << v[ 2 ] << " " << r << endl;
 				cnt++;

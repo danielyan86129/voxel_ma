@@ -451,27 +451,30 @@ cellcomplex CellComplexThinning::remainingCC()
 }
 
 void CellComplexThinning::remainingCC(
-	vector<point>& vts_cc, vector<ivec2>& edges_cc, vector<uTriFace>& tri_faces_cc ) const
+	vector<point>& vts_cc, vector<ivec2>& edges_cc, vector<uTriFace>& _tri_faces, vector<int>* _from_fi_ptr ) const
 {
 	// remaining edges
 	vector<int> edge_indices;
 	edges_cc.clear();
 	getRemainedEdges( edge_indices );
-	for ( auto i : edge_indices )
+	for ( auto ei : edge_indices )
 	{
-		edges_cc.push_back( m_cc->getEdge( i ) );
+		edges_cc.push_back( m_cc->getEdge( ei ) );
 	}
 	// remaining faces. will be broken into triangles.
 	vector<int> face_indices;
-	tri_faces_cc.clear();
+	_tri_faces.clear();
+	if (_from_fi_ptr) _from_fi_ptr->clear();
 	getRemainedFaces( face_indices );
 	vector<int> f;
 	vector<uTriFace> f_tris;
-	for ( auto i : face_indices )
+	for ( auto fi : face_indices )
 	{
-		m_cc->getFaceVRep( i, f );
+		m_cc->getFaceVRep( fi, f );
 		util::simpleTriangulate( f, f_tris );
-		tri_faces_cc.insert( tri_faces_cc.end(), f_tris.begin(), f_tris.end() );
+		_tri_faces.insert( _tri_faces.end(), f_tris.begin(), f_tris.end() );
+		if ( _from_fi_ptr )
+			_from_fi_ptr->insert( _from_fi_ptr->end(), f_tris.size(), fi );
 	}
 	// remaining vertices.
 	vector<int> vts_remained_indices;
@@ -488,7 +491,7 @@ void CellComplexThinning::remainingCC(
 	cout << "# remaining faces: " << face_indices.size() << endl;
 
 	// lastly compact remaining cc
-	util::compactify( vts_remained_indices, edges_cc, tri_faces_cc );
+	util::compactify( vts_remained_indices, edges_cc, _tri_faces );
 }
 
 bool CellComplexThinning::edge_vert_pair_below_threshold( unsigned _ei, float _t ) const

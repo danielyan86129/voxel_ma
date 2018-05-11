@@ -600,7 +600,7 @@ namespace voxelvoro {
 
 	// TODO: optimize away redundant copy of msure, v/e/f, etc.
 	void VoroInfo::extractInsideWithMeasure( MeasureForMA::meassuretype _mssure_tp,
-		vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris,
+		vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris, vector<int>& _from_fi,
 		vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure ) const
 	{
 		timer t_msure, t_get_inside;
@@ -664,6 +664,7 @@ namespace voxelvoro {
 			{
 				f_msure_temp.push_back( msure );
 				_output_tris.push_back( f_tris[ i ] );
+				_from_fi.push_back( *fit );
 				util::makeEdgesFromTri( f_tris[ i ], tri_edges );
 				// add new edges arising from face being triangulated 
 				for ( auto e : tri_edges )

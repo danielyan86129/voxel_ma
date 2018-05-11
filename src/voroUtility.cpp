@@ -19,14 +19,14 @@ namespace fs = std::experimental::filesystem;
 // 
 // define valid modes here
 enum class ValidMode {
-	MRC2MAT, VOL2MESH, VORO2MESH, VOL2MA, R, MRC2SOF, TREE, TOPO, TIME_IO
+	MRC2MAT, VOL2MESH, TETVORO2VC, VOL2MA, R, MRC2SOG, TREE, TOPO, TIME_IO, INVALID
 };
 std::map<std::string, ValidMode> validmodes_map = {
 	{"mrc2mat", ValidMode::MRC2MAT},
 	{"vol2mesh", ValidMode::VOL2MESH},
-	{"voro2mesh", ValidMode::VORO2MESH},
+	{"tetvoro2vc", ValidMode::TETVORO2VC},
 	{"vol2ma", ValidMode::VOL2MA},
-	{"mrc2sof", ValidMode::MRC2SOF},
+	{"mrc2sog", ValidMode::MRC2SOG},
 	{"r", ValidMode::R},
 	{"t", ValidMode::TREE},
 	{"topo", ValidMode::TOPO},
@@ -37,7 +37,7 @@ std::map<std::string, ValidMode> validmodes_map = {
 //bool need_euler; // need to compute euler-characteristic?
 //// args for mode vol2mesh: 
 //bool only_bndry_vts; // only output vts on the voxel boundary
-//// args for mode voro2mesh:
+//// args for mode tetvoro2vc:
 //bool voro_out_2_mat; // output voro to a mathematica-friendly file
 //bool voro_out_2_dotma; // output voro to .ma file
 
@@ -46,7 +46,10 @@ std::map<std::string, ValidMode> validmodes_map = {
 //
 
 // define cmd flag 'md' for modes & its handler
-DEFINE_string( md, "not-specified", "specify a mode for the utility to perform certain task. REQUIRED." );
+DEFINE_string( md, "not-specified", 
+	"a mode for the utility to perform certain task (vol2mesh, vol2ma). \
+	Specify a value for further args info. REQUIRED." 
+);
 static bool processMode( const char* _flagname, const std::string& _value )
 {
 	if ( validmodes_map.find( _value ) == validmodes_map.end() )
@@ -64,9 +67,6 @@ DEFINE_bool( needEuler, false, "need to compute euler characteristic for the rel
 // define cmd flag 'siteFile'
 DEFINE_string( siteFile, "", "provide a .node file containing the contributing sites of a voro-diagram. OPTIONAL." );
 
-// define cmd flag 'onlyBndryVts'
-DEFINE_bool( onlyBndryVts, true, "only extract the vertices of the voxel boundary. OPTIONAL." );
-
 // define cmd flag 'collapseEdges'
 DEFINE_bool( collapseZeroLenEdges, false, "perform 0-length-edge collapse on the voro-diagram. OPTIONAL." );
 
@@ -76,9 +76,6 @@ DEFINE_bool( outToMat, false, "output voro-diagram to a mathematica file. OPTION
 // define cmd flag 'outToDotma'
 DEFINE_bool( outToDotma, false, "output voro-diagram to a .ma file (input format to QMAT). OPTIONAL." );
 
-// cmd option: thinning threshold
-DEFINE_string( tt, "0.08", "a list of comma-sep threshold used in thinning. OPTIONAL." );
-
 // cmd option: mapping function from MC to voxel surface & related parameters
 DEFINE_string( dofuncmap, "",
 	"mapping specified function from MC to voxel surface: \n\
@@ -86,23 +83,77 @@ DEFINE_string( dofuncmap, "",
 DEFINE_string( mcBase, "", "base name for a set of medial-curve related files. input to funcMapApp. OPTIONAL." );
 DEFINE_double( smoothR, 0.1, "smoothing ratio for funcMapApp. OPTIONAL." );
 
-// cmd options for -md=mrc2sof
+// cmd options for -md=vol2mesh
+DEFINE_bool( onlyBndryVts, true, "only extract the vertices of the voxel boundary. OPTIONAL." );
+DEFINE_bool( write2node, false, "write voxel boundary vts to .node file in input file folder. OPTIONAL." );
+
+/* cmd options for -md=vol2ma */
+// thinning threshold
+DEFINE_int32( fullOrPruned, 0, "write full or prunned voxel core (0: pruned, 1: full, 2: both). OPTIONAL." );
+DEFINE_string( tt, "0.04", "1 or more comma-sep lambda pruning thresholds. OPTIONAL." );
+
+// cmd options for -md=mrc2sog
 DEFINE_string( mrc, "", "the input volume in format .mrc that's to be converted. REQUIRED." );
 DEFINE_string( sof, "", "the output volume in format .sof the input will be converted to. OPTIONAL." );
 
 // cmd options for -md=t
 DEFINE_string( skm, "", "the input file containing graph and edge measures .skMsure. REQUIRED." );
 
+/* cmd options for -md=tetvoro2vc */
+DEFINE_bool( loadIVD, true, "load only IVD from tetgen voro output. OPTIONAL." );
+
 /* cmd options for -md=topo */
 DEFINE_string( meshToCheck, "",
 	"The input file representing a mesh with open boundary (e.g. medial axis). REQUIRED."\
 	"We want to detect whether there are any closed components - \"pockets\" on it." );
 DEFINE_bool( isMan, true, "Is the meshToCheck a manifold? OPTIONAL." );
-DEFINE_bool( loadIVD, true, "load only IVD from tetgen voro output. OPTIONAL." );
 
-void printUsage()
+void printUsage( ValidMode _md = ValidMode::INVALID )
 {
-	cout << google::ProgramUsage() << endl;
+	string progname = google::ProgramInvocationShortName();
+	google::CommandLineFlagInfo flag_info;
+	switch ( _md )
+	{
+	case ValidMode::MRC2MAT:
+		break;
+	case ValidMode::VOL2MESH:
+	{
+		flag_info = google::GetCommandLineFlagInfoOrDie( "onlyBndryVts" );
+		std::string onlybndryvts_s = google::DescribeOneFlag( flag_info );
+		flag_info = google::GetCommandLineFlagInfoOrDie( "write2node" );
+		std::string write2node_s = google::DescribeOneFlag( flag_info );
+		cout << progname + " -md=vol2mesh <input vol fullpath> <output mesh fullpath(w/o extension)> [optional] \n" +
+			"optional: \n" +
+			onlybndryvts_s + write2node_s << endl;
+		break;
+	}
+	case ValidMode::TETVORO2VC:
+		break;
+	case ValidMode::VOL2MA:
+	{
+		flag_info = google::GetCommandLineFlagInfoOrDie( "tt" );
+		string tt_info_s = google::DescribeOneFlag( flag_info );
+		flag_info = google::GetCommandLineFlagInfoOrDie( "fullOrPruned" );
+		string fullma_info_s = google::DescribeOneFlag( flag_info );
+		cout << progname + " -md=vol2ma <in: volume fullpath. ext: .mrc/.sog)> <out: MA fullpath. ext: .ply> [optional] \n" +
+			"optional: \n" +
+			tt_info_s + fullma_info_s << endl;
+		break;
+	}
+	case ValidMode::R:
+		break;
+	case ValidMode::MRC2SOG:
+		break;
+	case ValidMode::TREE:
+		break;
+	case ValidMode::TOPO:
+		break;
+	case ValidMode::TIME_IO:
+		break;
+	case ValidMode::INVALID: default:
+		cout << google::ProgramUsage() << endl;
+		break;
+	}
 };
 
 // split a string into a list of numbers
@@ -116,13 +167,47 @@ vector<float> split( const std::string& _s, char _d )
 	return res;
 }
 
+void export_scalar_on_voxel_surf( const voxelvoro::VoroInfo& _voro, const string& _VC_filebase )
+{
+	cout << endl << "***************************" << endl;
+	cout << "Estimating & exporting scalar field on voxel surface..." << endl;
+	auto mcgeom_filename = FLAGS_mcBase + ".mc";
+	auto skel_filename = FLAGS_mcBase + "_skel.ply";
+	if ( !std::experimental::filesystem::exists( skel_filename ) )
+		skel_filename = "";
+	cout << "skeleton file: " << skel_filename << endl;
+	auto mcmsure_name = FLAGS_dofuncmap;
+	auto mcmsure_filename = FLAGS_mcBase + "." + mcmsure_name + ".msure";
+	// outputting segmentation needs help from another measure, e.g. "bt3"
+	if ( mcmsure_name == "seglabel" || mcmsure_name == "length" )
+		mcmsure_filename = FLAGS_mcBase + ".bt3.msure";
+	else if ( mcmsure_name == "traveldist" )
+		mcmsure_filename = FLAGS_mcBase + ".bt2.msure";
+	cout << "measure file: " << mcmsure_filename << endl;
+	auto mcorder_filename = FLAGS_mcBase + ".mcorder";
+	auto output_filename = std::string( _VC_filebase ) + "." + mcmsure_name + ".msure";
+	auto retcode = voxelvoro::exportScalarFieldOnVoxelSurface(
+		mcgeom_filename.c_str(),
+		mcmsure_filename == "" ? nullptr : mcmsure_filename.c_str(),
+		mcorder_filename.c_str(),
+		skel_filename == "" ? nullptr : skel_filename.c_str(),
+		output_filename.c_str(),
+		mcmsure_name.c_str(), // name of the measure
+		FLAGS_smoothR, // smoothing ratio (for smoothing measure)
+		_voro
+	);
+}
+
 void main( int _argc, char * _argv[] )
 {
+	string progname = fs::path( _argv[ 0 ] ).filename().generic_string();
 	// set usage of the program
-	google::SetUsageMessage( "\
-		voroUtil -md=<a valid mode> args.\n \
-		args depend on each mode. \n \
-		" );
+	string progusage = progname;
+	progusage += 
+		" -md=<a valid mode> <args>.\n \
+		mode: vol2mesh, vol2ma \n \
+		specify a mode to see its args. \n ";
+	google::SetUsageMessage( progusage );
 
 	// parse command line
 	// flags (starting with -) will be removed. only the cmd-level arguments will remain.
@@ -154,7 +239,7 @@ void main( int _argc, char * _argv[] )
 	{
 		if ( n_remain_args < 2 )
 		{
-			cout << "wrong args: expecting a volume and an output mesh file name" << endl;
+			printUsage( ValidMode::VOL2MESH );
 			goto FAILURE;
 		}
 		else
@@ -211,7 +296,7 @@ void main( int _argc, char * _argv[] )
 			goto SUCCESS;
 		}
 	}
-	else if ( FLAGS_md == "voro2mesh" )
+	else if ( FLAGS_md == "tetvoro2vc" )
 	{
 		if ( n_remain_args < 3 )
 		{
@@ -257,11 +342,12 @@ void main( int _argc, char * _argv[] )
 
 			cout << "Writing inside voro to mesh file ..." << endl;
 			auto voromesh_file = string( _argv[ cur_arg_idx + 2 ] );
-			auto voromesh_filebase = voromesh_file.substr( 0, ( voromesh_file.find_last_of( '.' ) ) );
+			auto VC_filebase = voromesh_file.substr( 0, ( voromesh_file.find_last_of( '.' ) ) );
 			if (
 				voxelvoro::exportInsideVoroMesh( voro, vol, voromesh_file.c_str(),
 					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, 
-					true/*inside only*/, false/*finite only*/, FLAGS_outToDotma,
+					true/*inside only*/, false/*finite only*/, 
+					FLAGS_fullOrPruned, true, FLAGS_outToDotma,
 					split(FLAGS_tt, ',') ) == voxelvoro::ExportErrCode::SUCCESS
 				)
 			{
@@ -275,7 +361,7 @@ void main( int _argc, char * _argv[] )
 			// optionally write out a radii file
 			if ( voro.radiiValid() )
 			{
-				auto radii_filename = voromesh_filebase + ".r";
+				auto radii_filename = VC_filebase + ".r";
 				cout << "writing radii to file " << radii_filename << endl;
 				if ( voxelvoro::writeRadiiToFile( voro, radii_filename.c_str(), vol->getVoxToModelMat() )
 					== voxelvoro::ExportErrCode::SUCCESS )
@@ -288,56 +374,14 @@ void main( int _argc, char * _argv[] )
 
 			if ( FLAGS_dofuncmap != "" )
 			{
-				cout << endl << "***************************" << endl;
-				cout << "Estimating & exporting scalar field on voxel surface..." << endl;
-				auto mcgeom_filename = FLAGS_mcBase + ".mc";
-				auto skel_filename = FLAGS_mcBase + "_skel.ply";
-				if ( !std::experimental::filesystem::exists( skel_filename ) )
-					skel_filename = "";
-				cout << "skeleton file: " << skel_filename << endl;
-				auto mcmsure_name = FLAGS_dofuncmap;
-				auto mcmsure_filename = FLAGS_mcBase + "." + mcmsure_name + ".msure";
-				// outputting segmentation needs help from another measure, e.g. "bt3"
-				if ( mcmsure_name == "seglabel" || mcmsure_name == "length" )
-					mcmsure_filename = FLAGS_mcBase + ".bt3.msure";
-				else if ( mcmsure_name == "traveldist" )
-					mcmsure_filename = FLAGS_mcBase + ".bt2.msure";
-				cout << "measure file: " << mcmsure_filename << endl;
-				auto mcorder_filename = FLAGS_mcBase + ".mcorder";
-				auto output_filename = std::string( basename ) + "." + mcmsure_name + ".msure";
-				auto retcode = voxelvoro::exportScalarFieldOnVoxelSurface(
-					mcgeom_filename.c_str(),
-					mcmsure_filename == "" ? nullptr : mcmsure_filename.c_str(),
-					mcorder_filename.c_str(),
-					skel_filename == "" ? nullptr : skel_filename.c_str(),
-					output_filename.c_str(),
-					mcmsure_name.c_str(), // name of the measure
-					FLAGS_smoothR, // smoothing ratio (for smoothing measure)
-					voro
-				);
+				export_scalar_on_voxel_surf( voro, VC_filebase );
 			}
 			if ( FLAGS_outToMat )
 			{
 				// debug info required.
-				auto matfilename = voromesh_filebase + "_voro_mat.txt";
+				auto matfilename = VC_filebase + "_voro_mat.txt";
 				voro.outputToMathematica( matfilename.c_str() );
 			}
-			//if ( FLAGS_outToDotma )
-			//{
-			//	// output voro to a .ma file
-			//	std::string vol_file = _argv[ 1 ];
-			//	auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
-			//	cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
-			//	if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
-			//		== voxelvoro::ExportErrCode::SUCCESS )
-			//	{
-			//		cout << "Done: writing voro-diagram to .ma file." << endl;
-			//	}
-			//	else
-			//	{
-			//		cout << "Error: failed to write voro-diagram to .ma file." << endl;
-			//	}
-			//}
 			goto SUCCESS;
 		}
 	}
@@ -345,7 +389,7 @@ void main( int _argc, char * _argv[] )
 	{
 		if ( n_remain_args < 2 )
 		{
-			cout << "wrong args: expecting <in: volume name> <out: MA meshname>" << endl;
+			printUsage( ValidMode::VOL2MA );
 			goto FAILURE;
 		}
 		else
@@ -379,7 +423,8 @@ void main( int _argc, char * _argv[] )
 			if (
 				voxelvoro::exportInsideVoroMesh( voro, vol, vorocore_file.c_str(),
 					FLAGS_needEuler, FLAGS_collapseZeroLenEdges, 
-					true/*inside only*/, false/*finite only*/, FLAGS_outToDotma,
+					true/*inside only*/, false/*finite only*/, 
+					FLAGS_fullOrPruned, true, FLAGS_outToDotma,
 					split( FLAGS_tt, ',' ) ) == voxelvoro::ExportErrCode::SUCCESS
 				)
 			{
@@ -390,49 +435,12 @@ void main( int _argc, char * _argv[] )
 				cout << "Error: couldn't write inside voro info." << endl;
 				goto FAILURE;
 			}
-			// optionally write out a radii file
-			if ( voro.radiiValid() )
-			{
-				auto radii_filename = vorocore_filebase + ".r";
-				cout << "writing radii to file " << radii_filename << endl;
-				if ( voxelvoro::writeRadiiToFile( voro, radii_filename.c_str(), vol->getVoxToModelMat() )
-					== voxelvoro::ExportErrCode::SUCCESS )
-					cout << "Done: writing radii to file. " << endl;
-				else
-					cout << "Failed writing radii to file! " << endl;
-			}
 
 			cur_arg_idx += 2; n_remain_args -= 2;
 
 			if ( FLAGS_dofuncmap != "" )
 			{
-				cout << endl << "***************************" << endl;
-				cout << "Estimating & exporting scalar field on voxel surface..." << endl;
-				auto mcgeom_filename = FLAGS_mcBase + ".mc";
-				auto skel_filename = FLAGS_mcBase + "_skel.ply";
-				if ( !std::experimental::filesystem::exists( skel_filename ) )
-					skel_filename = "";
-				cout << "skeleton file: " << skel_filename << endl;
-				auto mcmsure_name = FLAGS_dofuncmap;
-				auto mcmsure_filename = FLAGS_mcBase + "." + mcmsure_name + ".msure";
-				// outputting segmentation needs help from another measure, e.g. "bt3"
-				if ( mcmsure_name == "seglabel" || mcmsure_name == "length" )
-					mcmsure_filename = FLAGS_mcBase + ".bt3.msure";
-				else if ( mcmsure_name == "traveldist" )
-					mcmsure_filename = FLAGS_mcBase + ".bt2.msure";
-				cout << "measure file: " << mcmsure_filename << endl;
-				auto mcorder_filename = FLAGS_mcBase + ".mcorder";
-				auto output_filename = std::string( vorocore_filebase ) + "." + mcmsure_name + ".msure";
-				auto retcode = voxelvoro::exportScalarFieldOnVoxelSurface(
-					mcgeom_filename.c_str(),
-					mcmsure_filename == "" ? nullptr : mcmsure_filename.c_str(),
-					mcorder_filename.c_str(),
-					skel_filename == "" ? nullptr : skel_filename.c_str(),
-					output_filename.c_str(),
-					mcmsure_name.c_str(), // name of the measure
-					FLAGS_smoothR, // smoothing ratio (for smoothing measure)
-					voro
-				);
+				export_scalar_on_voxel_surf( voro, vorocore_filebase );
 			}
 			if ( FLAGS_outToMat )
 			{
@@ -440,26 +448,10 @@ void main( int _argc, char * _argv[] )
 				auto matfilename = vorocore_filebase + "_voro_mat.txt";
 				voro.outputToMathematica( matfilename.c_str() );
 			}
-			//if ( FLAGS_outToDotma )
-			//{
-			//	// output voro to a .ma file
-			//	std::string vol_file = _argv[ 1 ];
-			//	auto dotmafilename = vol_file.substr( 0, ( vol_file.find_last_of( '.' ) ) ) + ".ma";
-			//	cout << "Done: writing voro-diagram to .ma file: " << dotmafilename << endl;
-			//	if ( voxelvoro::writeInsideVoroToDotMA( voro, dotmafilename.c_str() )
-			//		== voxelvoro::ExportErrCode::SUCCESS )
-			//	{
-			//		cout << "Done: writing voro-diagram to .ma file." << endl;
-			//	}
-			//	else
-			//	{
-			//		cout << "Error: failed to write voro-diagram to .ma file." << endl;
-			//	}
-			//}
 			goto SUCCESS;
 		}
 	}
-	else if ( FLAGS_md == "mrc2sof" )
+	else if ( FLAGS_md == "mrc2sog" )
 	{
 		if ( !fs::exists( FLAGS_mrc ) )
 		{

@@ -116,7 +116,7 @@ namespace voxelvoro
 		//
 		// return inside part (v/e/f) together with the specified measure (on v/e/f)
 		void extractInsideWithMeasure( MeasureForMA::meassuretype _mssure_tp,
-			vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris,
+			vector<point>& _output_vts, vector<ivec2>& _output_edges, vector<uTriFace>& _output_tris, vector<int>& _from_fi,
 			vector<float>& _vts_msure, vector<float>& _edges_msure, vector<float>& _faces_msure ) const;
 		//
 		// generate measures for elements of this voro internally

@@ -1,6 +1,7 @@
 #include "highlevelalgo.h"
 
 #include <chrono>
+#include <sstream>
 
 #include <TriMesh.h>
 #include <TriMesh_algo.h>
@@ -488,7 +489,7 @@ namespace voxelvoro
 		const char* _output_filename,
 		const char* _mc_msure_name,
 		float _smooth_r,
-		VoroInfo& _voro )
+		const VoroInfo& _voro )
 	{
 		vector<point> mc_vts;
 		vector<float> mc_msure;
@@ -561,6 +562,8 @@ namespace voxelvoro
 		bool _need_euler,
 		bool _collapse_degenerate_edges,
 		bool _inside_only, bool _finite_only,
+		int _full_or_thin, /*0: thin, 1: full, 2: both*/
+		bool _write_attrib,
 		bool _out_qmat,
 		const vector<float>& _tt/*thinning threshold(s)*/ )
 	{
@@ -591,6 +594,7 @@ namespace voxelvoro
 		trimesh::remove_unused_vertices( &mesh );
 		}*/
 
+		auto mesh_file = std::string( _mesh_file );
 		if ( std::string( _mesh_file ).find( ".off" ) != std::string::npos )
 		{
 			vector<uTriFace> output_tri_faces;
@@ -622,15 +626,17 @@ namespace voxelvoro
 			trimesh::remove_unused_vertices( &mesh );
 			mesh.write( _mesh_file );
 		}// else branch: output in .off format
-		else if ( std::string( _mesh_file ).find( ".ply" ) != std::string::npos )
+		else if ( mesh_file.find( ".ply" ) != std::string::npos )
 		{
+			string mesh_path_wo_ext = mesh_file.substr( 0, mesh_file.rfind( '.' ) );
 			vector<point> vts;
 			vector<ivec2> edges;
 			vector<uTriFace> tri_faces;
-			vector<float> vts_msure, edges_msure, faces_msure;
+			vector<int> from_fi;
+			vector<float> vts_msure, edges_msure, all_tri_msure;
 			_voro.extractInsideWithMeasure( MeasureForMA::LAMBDA,
-				vts, edges, tri_faces,
-				vts_msure, edges_msure, faces_msure );
+				vts, edges, tri_faces, from_fi,
+				vts_msure, edges_msure, all_tri_msure );
 			std::cout << "inside part extracted. " << std::endl;
 			if ( vts.empty() )
 			{
@@ -647,35 +653,67 @@ namespace voxelvoro
 					v = v_trans;
 				}
 
-				// output info to file
+				// output full VC to file
 				t_write_IVD.start();
-				writeToPLY( _mesh_file, vts_trans, edges, tri_faces,
-					vts_msure, edges_msure, faces_msure );
+				if ( _full_or_thin == 1 || _full_or_thin == 2 ) // writing full VC?
+				{
+					cout << "writing full voxel core (could take a while) to: " << _mesh_file << endl;
+					if (_write_attrib )
+					{
+						// prepare sites for all faces
+						vector<ivec2> triface_site_ids;
+						for ( auto i = 0; i < tri_faces.size(); ++i )
+							triface_site_ids.push_back( _voro.getSitesOfFace( from_fi[ i ] ) );
+						// write them along with full VC
+						writeToPLY( _mesh_file, vts_trans, edges, tri_faces,
+							vts_msure, edges_msure, all_tri_msure,
+							true, &_voro.getSitesPosition(), &triface_site_ids );
+					}
+					else
+					{
+						writeToPLY( _mesh_file, vts_trans, edges, tri_faces,
+							vts_msure, edges_msure, all_tri_msure );
+					}
+					auto radii_filename = mesh_path_wo_ext + ".r";
+					cout << "writing radii to file " << radii_filename << endl;
+					if ( voxelvoro::writeRadiiToFile( _voro, radii_filename.c_str(), _vol->getVoxToModelMat() )
+						== voxelvoro::ExportErrCode::SUCCESS )
+						cout << "Done: writing radii to file. " << endl;
+					else
+						cout << "Failed: writing radii to file! " << endl;
+				}
 				t_write_IVD.stop();
-				auto min_max_msure = std::minmax_element( faces_msure.begin(), faces_msure.end() );
+				auto min_max_msure = std::minmax_element( all_tri_msure.begin(), all_tri_msure.end() );
 				cout << "range of measure: " << "[" << *min_max_msure.first << "," << *min_max_msure.second << "]" << endl;
+
+				if ( _full_or_thin == 1 ) // not writing thinned VC?
+					goto END_PLY_BRANCH;
 
 				// qmat file related vars
 				unordered_set<ivec2, ivec2Hash> unique_edges;
 
+				std::stringstream ss;
 				float eps = _voro.getInsidePartSize() * 0.000001f;
 				CellComplexThinning ccthin;
 				cellcomplex cc( vts_trans, edges, tri_faces );
 				ccthin.setup( &cc );
-				ccthin.assignElementValues( vts_msure, edges_msure, faces_msure );
+				ccthin.assignElementValues( vts_msure, edges_msure, all_tri_msure );
 				ccthin.preprocess();
+				vector<int> remain_vts_ids;
 				for ( double t : _tt )
 				{
-					if ( !util::is_equal( t, 0.0, (double)eps ) && t > 0.0 )
+					//if ( util::is_equal( t, 0.0, (double)eps ) && _full_or_thin )
+					//	continue; // skip this as full VC already written above!
+
+					// start writing this pruned VC
+					if ( t >= 0.0 )
 					{
 						// output pruned mesh
 						t_thin.start();
 
-						auto minmax_fmsure = std::minmax_element( faces_msure.begin(), faces_msure.end() );
-						//float thresh = ( *minmax_fmsure.second ) * 0.1f;
 						float thresh = _voro.getInsidePartSize() * t;
 						ccthin.prune( thresh, thresh, false );
-						ccthin.remainingCC( vts_trans, edges, tri_faces );
+						ccthin.remainingCC( vts_trans, edges, tri_faces, nullptr );
 
 						t_thin.stop();
 
@@ -691,18 +729,48 @@ namespace voxelvoro
 							goto END_PLY_BRANCH;
 						}
 
-						// output the thinned result to .ply file
-						vts_msure.clear(); edges_msure.clear(); faces_msure.clear();
+						//* output the thinned result to .ply file
 						std::string thin_file = _mesh_file;
-						auto end_str = std::string( "_thinned" ) + std::to_string( t );
+						ss.str( "" ); 
+						ss << t;
+						auto end_str = std::string( "_thinned" ) + ss.str();
 						thin_file.insert( thin_file.find( ".ply" ), end_str );
-						cout << "writing remaining cc to file: " << thin_file << endl;
 						t_write_thinIVD.start();
-						writeToPLY( thin_file.c_str(), vts_trans, edges, tri_faces,
-							vts_msure, edges_msure, faces_msure );
+						if ( _write_attrib )
+						{
+							// write attrib for each face: measure & 2 site positions...
+							vector<int> remain_tri_ids;
+							ccthin.getRemainedFaces( remain_tri_ids );
+							vector<ivec2> triface_site_ids;
+							vector<float> tri_msure_thin;
+							for ( auto ti : remain_tri_ids )
+							{
+								triface_site_ids.push_back( _voro.getSitesOfFace( from_fi[ ti ] ) ); // sites for remain tri faces
+								tri_msure_thin.push_back( all_tri_msure[ ti ] ); // msure for remain tri faces
+							}
+							cout << "writing remaining cc to file (with face attribs): " << thin_file << endl;
+							vts_msure.clear(); edges_msure.clear();
+							writeToPLY( thin_file.c_str(), vts_trans, edges, tri_faces,
+								vector<float>(), vector<float>(), tri_msure_thin,
+								true, &( _voro.getSitesPosition() ), &triface_site_ids );
+							cout << "Done." << endl;
+						}
+						else
+						{
+							cout << "writing remaining cc to file: " << thin_file << endl;
+							writeToPLY( thin_file.c_str(), vts_trans, edges, tri_faces,
+								vector<float>(), vector<float>(), vector<float>(),
+								false );
+							cout << "Done." << endl;
+						}
 						t_write_thinIVD.stop();
+						// output .r file
+						auto radii_filename = mesh_path_wo_ext + end_str + ".r";
+						remain_vts_ids.clear();
+						ccthin.getRemainedVts( remain_vts_ids );
+						voxelvoro::writeRadiiToFile( _voro, radii_filename.c_str(), _vol->getVoxToModelMat(), &remain_vts_ids );
 
-						/*** output the thinned result to qmat .ma file ***/
+						//* output the thinned result to qmat .ma file
 						if ( _out_qmat )
 						{
 							// get radii

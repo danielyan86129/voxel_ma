@@ -27,10 +27,11 @@ namespace voxelvoro
 	//
 	// write the boundary elements (vts & faces) into a mesh .off file from the given volume
 	// @note: the volume could be a dense or sparse rep. 
-	ExportErrCode writeVolumeAsBoundaryMesh( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, bool _need_euler );
+	ExportErrCode writeVolumeAsBoundaryMesh( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, 
+		bool _need_euler, bool _write_node = false );
 	//
 	// write the boundary vertices into a mesh .off file & a tetgen .node file from the given volume
-	ExportErrCode writeVolumeAsBoundaryPts( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base );
+	ExportErrCode writeVolumeAsBoundaryPts( const shared_ptr<Volume3DScalar>& _vol, const char * _outfile_base, bool _write_node = false );
 	//
 	// write the given list of vertices to an output file (tetgen's .node file)
 	ExportErrCode writeToTetnodes( const vector<point>& _vts, const char* _outfile_name );
@@ -43,14 +44,16 @@ namespace voxelvoro
 	// write the inside part of a voro-diagram to .ma file (input format of QMAT)
 	ExportErrCode writeInsideVoroToDotMA( const VoroInfo& _voro, const char* _dotma_file );
 	//
-	// write vts, edges, and faces to a ply mesh file along with measures
+	// write vts, edges, and faces to a ply mesh file optionally with a measure for each element.
+	// user can also specify whether to output given site information assoc.ed with each face to the file
 	ExportErrCode writeToPLY( const char* _ply_filename,
 		const vector<point>& _output_vts, const vector<ivec2>& _output_edges, const vector<uTriFace>& _output_tris,
-		const vector<float>& _vts_msure, const vector<float>& _edges_msure, const vector<float>& _faces_msure );
+		const vector<float>& _vts_msure, const vector<float>& _edges_msure, const vector<float>& _faces_msure,
+		bool _write_sites = false, const vector<point>* _sites = nullptr, const vector<ivec2>* _face_sites_ids = nullptr );
 	//
 	// write the radii filed out to a file (.r format)
 	// optionally transform radii using the given matrix
-	ExportErrCode writeRadiiToFile( const VoroInfo& _voro, const char* _r_file, const trimesh::xform& _mat );
+	ExportErrCode writeRadiiToFile( const VoroInfo& _voro, const char* _r_file, const trimesh::xform& _mat, const vector<int>* _ids_ptr = nullptr );
 	//
 	// read in the medial axis (.off file) and the boundary vertices 
 	// of the corresponding shape, estimate the radii field over the medial axis
