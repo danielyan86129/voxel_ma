@@ -94,7 +94,7 @@ DEFINE_string( tt, "0.04", "1 or more comma-sep lambda pruning thresholds. OPTIO
 
 // cmd options for -md=mrc2sog
 DEFINE_string( mrc, "", "the input volume in format .mrc that's to be converted. REQUIRED." );
-DEFINE_string( sof, "", "the output volume in format .sof the input will be converted to. OPTIONAL." );
+DEFINE_string( sog, "", "the output volume in format .sog the input will be converted to. OPTIONAL." );
 
 // cmd options for -md=t
 DEFINE_string( skm, "", "the input file containing graph and edge measures .skMsure. REQUIRED." );
@@ -143,7 +143,15 @@ void printUsage( ValidMode _md = ValidMode::INVALID )
 	case ValidMode::R:
 		break;
 	case ValidMode::MRC2SOG:
+	{
+		flag_info = google::GetCommandLineFlagInfoOrDie( "mrc" );
+		string mrc_info_s = google::DescribeOneFlag( flag_info );
+		flag_info = google::GetCommandLineFlagInfoOrDie( "sog" );
+		string sog_info_s = google::DescribeOneFlag( flag_info );
+		cout << progname + " -md=mrc2sog -mrc=<in: mrc file path> -sog=<out: sog file path>\n" +
+			mrc_info_s + sog_info_s << endl;
 		break;
+	}
 	case ValidMode::TREE:
 		break;
 	case ValidMode::TOPO:
@@ -205,7 +213,7 @@ void main( int _argc, char * _argv[] )
 	string progusage = progname;
 	progusage += 
 		" -md=<a valid mode> <args>.\n \
-		mode: vol2mesh, vol2ma \n \
+		mode: vol2mesh, vol2ma, mrc2sog \n \
 		specify a mode to see its args. \n ";
 	google::SetUsageMessage( progusage );
 
@@ -455,7 +463,7 @@ void main( int _argc, char * _argv[] )
 	{
 		if ( !fs::exists( FLAGS_mrc ) )
 		{
-			cout << "Error: mrc file does not exists/or is not specified: " << FLAGS_mrc << endl;
+			printUsage( ValidMode::MRC2SOG );
 			goto FAILURE;
 		}
 		auto mrc_path = fs::path( FLAGS_mrc );
@@ -464,7 +472,7 @@ void main( int _argc, char * _argv[] )
 			cout << "Error: unsupported format for input volume: " << mrc_path.extension() << endl;
 			goto FAILURE;
 		}
-		auto sof_path = fs::path( FLAGS_sof );
+		auto sof_path = fs::path( FLAGS_sog );
 		if ( sof_path == "" )
 		{
 			sof_path = mrc_path;
