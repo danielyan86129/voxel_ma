@@ -2,7 +2,7 @@
 #define VOX_INFO_H
 
 //////////////////////////////////////////////////////////////////////////
-// This file contains info for a voxel cube, 
+// This file contains info for a voxel cube,
 // including the layout of corners, faces, edges,
 // and the neighbor voxels that share these elements with the voxel
 //////////////////////////////////////////////////////////////////////////
@@ -12,6 +12,5 @@
 */
 struct VoxInfo
 {
-
 };
 #endif // VOX_INFO_H

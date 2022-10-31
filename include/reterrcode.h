@@ -3,10 +3,10 @@
 
 enum class RetErrCode
 {
-	// failure
-	FAILURE,
-	// success
-	SUCCESS
+    // failure
+    FAILURE,
+    // success
+    SUCCESS
 };
 
 #endif // RET_ERR_CODE
