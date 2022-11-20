@@ -1,5 +1,5 @@
-#include "edgecollapse.h"
-#include "geomalgo.h"
+#include <voxelcore/edgecollapse.h>
+#include <voxelcore/geomalgo.h>
 
 #include <algorithm>
 #include <cassert>
@@ -45,6 +45,7 @@ void TopoPreservEdgeCollapser::collapse()
     v_f_adj_tbl.resize(m_vts_ptr->size(), vector<int>());
     // mapping: e id -> list of the faces sharing this edge
     map<ivec2, vector<int>> e_f_adj_tbl;
+    typedef map<ivec2, vector<int>>::iterator EFTableIter;
     // face removed tag
     vector<bool> removed_tag_faces;
     removed_tag_faces.resize(m_tris_ptr->size(), false);
@@ -95,10 +96,24 @@ void TopoPreservEdgeCollapser::collapse()
     bool edge_collapsed = false;
     // iterate through each edge
     int progress = 0;
+    auto update_it_to_next_edge = [&e_f_adj_tbl](EFTableIter& it,
+                                                 bool edge_collapsed) {
+        if (edge_collapsed == true)
+        {
+            // delete this edge
+            it = e_f_adj_tbl.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    };
     for (auto it = e_f_adj_tbl.begin(); it != e_f_adj_tbl.end(); /*++it*/)
     {
         if (progress++ % 1000000 == 0)
+        {
             std::cout << "edges inspected: " << progress << std::endl;
+        }
         const auto& e = it->first;
         const auto &u = e[0], &v = e[1];
 
@@ -106,7 +121,8 @@ void TopoPreservEdgeCollapser::collapse()
         if (!are_same((*m_vts_ptr)[u], (*m_vts_ptr)[v]))
         {
             edge_collapsed = false;
-            goto NEXT_EDGE;
+            update_it_to_next_edge(it, edge_collapsed);
+            continue;
         }
 
         /* now we know this is a degenerate edge. check link conditions. */
@@ -140,7 +156,8 @@ void TopoPreservEdgeCollapser::collapse()
         if (num_common_vts != size_lk_uv)
         {
             edge_collapsed = false;
-            goto NEXT_EDGE;
+            update_it_to_next_edge(it, edge_collapsed);
+            continue;
         }
         // check if this holds for the link for u, v containing edges (nb
         // edges): reject edge if the intersection between lk_u and lk_v is
@@ -201,7 +218,8 @@ void TopoPreservEdgeCollapser::collapse()
         if (common_edge_non_empty)
         {
             edge_collapsed = false;
-            goto NEXT_EDGE;
+            update_it_to_next_edge(it, edge_collapsed);
+            continue;
         }
 
         // link condition 2:
@@ -238,7 +256,8 @@ void TopoPreservEdgeCollapser::collapse()
         if (lk_1_common_non_empty)
         {
             edge_collapsed = false;
-            goto NEXT_EDGE;
+            update_it_to_next_edge(it, edge_collapsed);
+            continue;
         }
 
         /*the edge uv has passed all tests, meaning we should collapse it:
@@ -396,16 +415,7 @@ void TopoPreservEdgeCollapser::collapse()
 
         edge_collapsed = true;
 
-    NEXT_EDGE:
-        if (edge_collapsed == true)
-        {
-            // delete this edge
-            it = e_f_adj_tbl.erase(it);
-        }
-        else
-        {
-            it++;
-        }
+        update_it_to_next_edge(it, edge_collapsed);
     } // for () : try to collapse all degenerate edges
 
     std::cout << "removing faces ..." << std::endl;

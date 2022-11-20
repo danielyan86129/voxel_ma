@@ -2,7 +2,7 @@
 #define MYVOLUME_H
 
 #include "commondefs.h"
-#include <XForm.h> // trimesh's transform matrix
+#include <trimesh/XForm.h> // trimesh's transform matrix
 
 //////////////////////////////////////////////////////////////////////////
 /// This is the abstract class for a 3d volume storing a scalar value at each
@@ -12,7 +12,7 @@ class Volume3DScalar
 {
 public:
     Volume3DScalar() { m_sizes = ivec3(0); }
-    ~Volume3DScalar() {}
+    virtual ~Volume3DScalar() {}
 
     // return the value at the requested voxel
     virtual double getDataAt(int _x, int _y, int _z) const = 0;

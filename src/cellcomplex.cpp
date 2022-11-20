@@ -5,8 +5,8 @@ using std::pair;
 using std::queue;
 using std::set;
 using std::unordered_map;
-#include "cellcomplex.h"
-#include <TriMesh.h>
+#include <trimesh/TriMesh.h>
+#include <voxelcore/cellcomplex.h>
 
 cellcomplex::cellcomplex() { invalidateStates(); }
 

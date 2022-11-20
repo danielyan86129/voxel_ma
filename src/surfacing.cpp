@@ -5,13 +5,13 @@
 #include <queue>
 #include <set>
 
-#include <Cube.h> // Tao's cycle table
+#include <isosurface/Cube.h> // Tao's cycle table
 
-#include "densevolume.h"
-#include "geomalgo.h"
-#include "octree.h"
-#include "reterrcode.h"
-#include "surfacing.h"
+#include <voxelcore/densevolume.h>
+#include <voxelcore/geomalgo.h>
+#include <voxelcore/octree.h>
+#include <voxelcore/reterrcode.h>
+#include <voxelcore/surfacing.h>
 
 using std::set;
 using std::unordered_map;
@@ -78,19 +78,20 @@ Surfacer::extractBoundaryVtsAndFaces(const shared_ptr<Volume3DScalar>& _vol,
         {
             nb_vox = cur_vox + m_faceId_nbvoxOffset_map[o];
 
-            // debug begin
-            auto cur_vox_val =
-                SpaceConverter::get_occupancy_at_vox(cur_vox, _vol);
-            auto nb_vox_val =
-                SpaceConverter::get_occupancy_at_vox(nb_vox, _vol);
-            if ( cur_vox_val == 0 /*&& nb_vox_val == 1 && 
-				(
-					nb_vox[ 0 ] == _vol->getSizeX() - 1 ||
-					nb_vox[ 1 ] == _vol->getSizeY() - 1 || 
-					nb_vox[ 2 ] == _vol->getSizeZ() - 1
-					)*/ )
-                int stop = 1;
-            // debug end
+            // // debug begin
+            // auto cur_vox_val =
+            //     SpaceConverter::get_occupancy_at_vox(cur_vox, _vol);
+            // [[maybe_unused]] auto nb_vox_val =
+            //     SpaceConverter::get_occupancy_at_vox(nb_vox, _vol);
+            // if ( cur_vox_val == 0 /*&& nb_vox_val == 1 &&
+            // 	(
+            // 		nb_vox[ 0 ] == _vol->getSizeX() - 1 ||
+            // 		nb_vox[ 1 ] == _vol->getSizeY() - 1 ||
+            // 		nb_vox[ 2 ] == _vol->getSizeZ() - 1
+            // 		)*/ )
+            //     int stop = 1;
+            // // debug end
+
             if (differ_in_values(cur_vox, nb_vox, _vol))
             {
                 // found a pair of voxels sandwiching a boundary face
@@ -245,7 +246,7 @@ Surfacer::extractBoundaryVts(const shared_ptr<Volume3DScalar>& _vol,
             if (differ_in_values(cur_vox, nb_vox, _vol))
             {
                 const auto& one_side_crnrs = m_cornersWRTNbOffset[o];
-                const auto fi = m_faceWRTNbOffset[o];
+                [[maybe_unused]] const auto fi = m_faceWRTNbOffset[o];
                 // for each corner between curvox and nbvox, test whether it
                 // exists or not
                 for (auto ii = 0; ii < one_side_crnrs.size(); ++ii)
@@ -394,7 +395,7 @@ int Surfacer::computeEulerChar(const vector<point>& _vts,
         {
             for (int k = 0; k < _vol->getSizeZ(); ++k)
             {
-                auto& v = ivec3(i, j, k);
+                const auto& v = ivec3(i, j, k);
                 if (SpaceConverter::get_occupancy_at_vox(v, _vol) == 1)
                 {
                     // count this interior cube

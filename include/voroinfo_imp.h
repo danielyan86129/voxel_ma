@@ -4,7 +4,7 @@ namespace voxelvoro
 
 inline bool VoroInfo::isVertexValid(int _vi) const
 {
-    return onlyHasInside() || m_vts_valid[_vi] && isVertexFinite(_vi);
+    return onlyHasInside() || (m_vts_valid[_vi] && isVertexFinite(_vi));
 }
 inline bool VoroInfo::isEdgeValid(int _ei) const
 {

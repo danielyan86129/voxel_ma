@@ -1,4 +1,4 @@
-#include "exporters.h"
+#include <voxelcore/exporters.h>
 
 #include <cassert>
 #include <chrono>
@@ -9,15 +9,16 @@
 #include <string>
 #include <vector>
 
-#include <TriMesh.h>
-#include <TriMesh_algo.h>
-#include <plyall.h>
+#include <trimesh/KDtree.h>
+#include <trimesh/TriMesh.h>
+// #include <trimesh/TriMesh_algo.h>
 
-#include "ccthin.h"
-#include "edgecollapse.h"
-#include "geomalgo.h"
-#include "importers.h"
-#include "surfacing.h"
+#include <voxelcore/ccthin.h>
+#include <voxelcore/edgecollapse.h>
+#include <voxelcore/geomalgo.h>
+#include <voxelcore/importers.h>
+#include <voxelcore/plyall.h>
+#include <voxelcore/surfacing.h>
 
 using std::cout;
 using std::endl;
@@ -79,14 +80,13 @@ int writeToMathematicaFromMRC(const shared_ptr<Volume3DScalar>& _vol,
     {
         cout << "Error: Cannot open file " << _outfile_name << endl;
         ret = -1;
-        goto RETURN;
+        return ret;
     }
 
     outfile << outstr.rdbuf();
 
     cout << "Done writing uniform volume to output file!" << endl;
 
-RETURN:
     outfile.close();
     return ret;
 }
@@ -346,30 +346,10 @@ writeToPLY(const char* _ply_filename, const vector<point>& _output_vts,
            const vector<float>& _faces_msure, bool _write_sites,
            const vector<point>* _sites, const vector<ivec2>* _face_sites_ids)
 {
-    struct Vertex
-    {
-        float x;
-        float y;
-        float z;
-        unsigned char r, g, b;
-        float s; // measure
-    };
-    struct Edge
-    {
-        int v1;
-        int v2;
-        unsigned char r, g, b;
-        float s; // measure
-    };
-    struct Face
-    {
-        unsigned char nvts;
-        int verts[3];
-        unsigned char sites_l; // len of sites array
-        float sites[6];        // 2*3 coords for two sites positions
-        float s;               // measure
-        unsigned char r, g, b; // pseudo-color of measure
-    };
+    typedef ply::Vertex Vertex;
+    typedef ply::Edge Edge;
+    typedef ply::Face Face;
+
     std::map<std::string, PlyProperty> vert_props;
     vert_props["x"] = {"x",        Float32, Float32, offsetof(Vertex, x),
                        PLY_SCALAR, 0,       0,       0};
@@ -487,10 +467,10 @@ writeToPLY(const char* _ply_filename, const vector<point>& _output_vts,
     std::cout << "# vts/edges/faces: " << output_vts.size() << "/"
               << output_edges.size() << "/" << output_faces.size() << std::endl;
 
-    ply::PLYwriter ply_writer;
+    ply::PLYWriter ply_writer;
     if (ply_writer.write(_ply_filename, true, true, true, vert_props,
                          edge_props, face_props, output_vts, output_edges,
-                         output_faces) != ply::SUCCESS)
+                         output_faces) != ply::ErrCode::SUCCESS)
         return ExportErrCode::FAILURE;
     return ExportErrCode::SUCCESS;
 }
@@ -585,13 +565,13 @@ int estimateRadiiField(const char* _ma_file_name,
 
     // read medial axis
     auto m_ptr = TriMesh::read(_ma_file_name);
-    auto ma_sptr = shared_ptr<TriMesh>(m_ptr);
-    if (!ma_sptr)
+    if (!m_ptr)
     {
         cout << "Error reading file " << _ma_file_name << endl;
         ret = -1;
-        goto RETURN;
+        return ret;
     }
+    auto ma_sptr = shared_ptr<TriMesh>(m_ptr);
 
     // read boundary vertices file
     // typedef trimesh::Vec<3, int> intpoint;
@@ -600,7 +580,7 @@ int estimateRadiiField(const char* _ma_file_name,
     {
         cout << "Error: couldn't open file " << _bndry_pts_file_name << endl;
         ret = -1;
-        goto RETURN;
+        return ret;
     }
 
     // read file header
@@ -670,7 +650,6 @@ int estimateRadiiField(const char* _ma_file_name,
     delete[] bndry_pts;
     delete[] radii;
 
-RETURN:
     return ret;
 }
 } // namespace voxelvoro

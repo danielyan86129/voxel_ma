@@ -154,7 +154,7 @@ public:
         void setCorner(int _x, int _y, int _z, int _occval)
         {
             auto corner_shift = getShift(_x, _y, _z);
-            value = value & ~((unsigned char)(1) << corner_shift) |
+            value = (value & ~((unsigned char)(1) << corner_shift)) |
                     (_occval << corner_shift);
         }
         // return an unchar to represent 8-voxels of this leafnode (for purpose
@@ -191,7 +191,7 @@ public:
     {
         IntNode() : OctreeNode(NodeType::INTERNAL)
         {
-            for (auto c : children)
+            for ([[maybe_unused]] OctreeNode* c : children)
                 c = nullptr;
         }
         bool isHomo(unsigned char& _homo_val) const { return false; }

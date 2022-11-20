@@ -5,8 +5,8 @@
 #include <iostream>
 #include <unordered_set>
 
-#include <TriMesh.h>
-#include <XForm.h>
+#include <trimesh/TriMesh.h>
+#include <trimesh/XForm.h>
 
 using std::cout;
 using std::endl;

@@ -1,9 +1,14 @@
-#include "graphapp.h"
 #include <filesystem>
 //#include <boost/graph/kruskal_min_spanning_tree.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
-#include <plyall.h>
-namespace fs = std::experimental::filesystem;
+
+#include <trimesh/TriMesh.h>
+
+#include <voxelcore/exporters.h>
+#include <voxelcore/graphapp.h>
+#include <voxelcore/plyall.h>
+
+namespace fs = std::filesystem;
 
 namespace graphapp
 {
@@ -263,10 +268,9 @@ void make_shortest_path_tree(const WeightedGraph& _g, const NodeHandle& _s,
 void exportTree(const WeightedGraph& _g, vector<NodeHandle>& _t,
                 const std::string& _filename)
 {
-    vector<ivec2> edge_list;
-    convertToEdges(_g, _t, edge_list);
-    vector<ply::Vertex> vts(boost::num_vertices(_g));
-    vector<ply::Edge> edges(edge_list.size());
+    vector<ivec2> edges;
+    convertToEdges(_g, _t, edges);
+    vector<trimesh::point> vts(boost::num_vertices(_g));
     for (auto i = 0; i < vts.size(); ++i)
     {
         auto p = _g[boost::vertex(i, _g)].p;
@@ -274,13 +278,14 @@ void exportTree(const WeightedGraph& _g, vector<NodeHandle>& _t,
         vts[i].y = p[1];
         vts[i].z = p[2];
     }
-    for (auto i = 0; i < edges.size(); ++i)
+    auto err =
+        voxelvoro::writeToPLY(_filename.c_str(), vts, edges, {}, {}, {}, {});
+    if (err == voxelvoro::ExportErrCode::FAILURE)
     {
-        auto e = edge_list[i];
-        edges[i].v1 = e[0];
-        edges[i].v2 = e[1];
+        throw std::runtime_error(std::string("Cannot write graph to file -> ") +
+                                 _filename);
     }
-    ply::PLYwriter writer;
-    writer.write(_filename.c_str(), vts, edges, {});
+    // ply::PLYWriter writer;
+    // writer.write(_filename.c_str(), true, true, false, vts, edges, {});
 }
 } // namespace graphapp

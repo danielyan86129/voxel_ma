@@ -1,9 +1,10 @@
-#include "voxelapps.h"
-#include "cellcomplex.h"
 #include <queue>
 //#include <TriMesh.h>
 #include <ANN/ANN.h>
-#include <TriMesh_algo.h>
+#include <trimesh/TriMesh_algo.h>
+
+#include <voxelcore/cellcomplex.h>
+#include <voxelcore/voxelapps.h>
 
 namespace voxelvoro
 {
@@ -159,7 +160,7 @@ void from_voxel_to_voro(const VoroInfo& _voro,
         nb_faces.clear();
         for (const auto& ei : _voro.geom().nbEdgesofVert(i))
         {
-            auto& fcs = _voro.geom().nbFacesofEdge(ei);
+            const auto& fcs = _voro.geom().nbFacesofEdge(ei);
             nb_faces.insert(fcs.begin(), fcs.end());
         }
         for (auto fi : nb_faces)
@@ -355,7 +356,7 @@ void tag_stable_subset_with_skel(
             _is_stable[nn_idx[j]] = true;
             _mc_to_skel[nn_idx[j]] = i;
             //// record the label if want to project "segment label" onto
-            ///surface
+            /// surface
             // if ( _msure_type == MCMeasure::SegmentLabel )
             //	smoothed_mc_field[ nn_idx[ j ] ] = skel_vts_label[ i ];
         }

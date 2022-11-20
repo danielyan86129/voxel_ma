@@ -11,11 +11,10 @@
 #include <unordered_set>
 
 #include <ANN/ANN.h>
-#include <TriMesh_algo.h>
+#include <trimesh/TriMesh_algo.h>
 
-#include "..\include\voroinfo.h"
-#include "geomalgo.h"
-#include "voroinfo.h"
+#include <voxelcore/geomalgo.h>
+#include <voxelcore/voroinfo.h>
 
 namespace voxelvoro
 {
@@ -180,7 +179,7 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
     m_is_finite_f.clear();
     vector<int> f_erep;
     vector<int> f_vts;
-    int fid, s1, s2, nsides, eid;
+    int s1, s2, nsides, eid;
     for (size_t i = 0; i < _tetio.numberofvfacets; ++i)
     {
         const auto& vf = _tetio.vfacetlist[i];
@@ -704,7 +703,10 @@ void VoroInfo::extractInsideWithMeasure(
         }
     }
     _faces_msure.swap(f_msure_temp);
-    f_msure_temp.swap(decltype(f_msure_temp)());
+    {
+        auto tmp = decltype(f_msure_temp)();
+        f_msure_temp.swap(tmp);
+    }
     unique_edge_set.clear();
     t_get_inside.stop();
 
@@ -1662,7 +1664,7 @@ void VoroInfo::load_voro_vts(ifstream& _in_node,
 
     m_geom.clearVertList();
     this->m_is_finite_v.clear();
-    int n_vts, dump_int;
+    int n_vts;
     int nchar_read = 0, offset = 0;
     auto delim = " \n\t";
 
@@ -1799,7 +1801,7 @@ void VoroInfo::load_voro_faces(
     vector<char> buffer(len);
     _in_face.read(&buffer[0], len);
 
-    int n_face, dump_int;
+    int n_face;
     auto delim = " \n\t";
     // read in num of faces
     auto token = strtok(&buffer[0], delim);
@@ -1813,7 +1815,7 @@ void VoroInfo::load_voro_faces(
     m_is_finite_f.reserve(n_face);
 
     vector<int> f_erep;
-    int fid, s1, s2, nsides, eid;
+    int s1, s2, nsides, eid;
     vector<int> f_of_vts;
     for (size_t i = 0; i < n_face; ++i)
     {
@@ -1896,7 +1898,7 @@ void VoroInfo::infer_sites_from_cell_file(ifstream& _in_cells)
     vector<char> buffer(len);
     _in_cells.read(&buffer[0], len);
 
-    int cell_cnt, dump_int;
+    int cell_cnt;
     auto delim = " \n\t";
     // read num of cells
     auto token = strtok(&buffer[0], delim);
@@ -2029,7 +2031,7 @@ void VoroInfo::compute_multiplicity_vts()
     for (int vi = 0; vi < num_vts; ++vi)
     {
         if (vi == num_vts - 1)
-            int stop = 1;
+            [[maybe_unused]] int stop = 1;
         // construct local star for cur vertex
         one_ring_faces.clear();
         one_ring_faces.insert(v_f_adj_tbl[vi].begin(), v_f_adj_tbl[vi].end());

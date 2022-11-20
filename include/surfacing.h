@@ -7,7 +7,7 @@
 #include <vector>
 
 //#include <volume.h> // Tao's volume struct
-#include <Volume3DScalar.h>
+#include "Volume3DScalar.h"
 
 #include "commondefs.h"
 #include "octree.h"

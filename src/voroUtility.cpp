@@ -1,19 +1,19 @@
-#include <filesystem>
-#include <iostream>
-using std::cout;
-using std::endl;
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <gflags/gflags.h>
+#include <iostream>
 #include <map>
 #include <string>
 
-#include "exporters.h"
-#include "graphapp.h"
-#include "highlevelalgo.h"
-#include "importers.h"
+#include <voxelcore/exporters.h>
+#include <voxelcore/graphapp.h>
+#include <voxelcore/highlevelalgo.h>
+#include <voxelcore/importers.h>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
+using std::cout;
+using std::endl;
 //
 // Specify all flags referred by the main() entry later and their valid values.
 //
@@ -226,7 +226,7 @@ void export_scalar_on_voxel_surf(const voxelvoro::VoroInfo& _voro,
     cout << "Estimating & exporting scalar field on voxel surface..." << endl;
     auto mcgeom_filename = FLAGS_mcBase + ".mc";
     auto skel_filename = FLAGS_mcBase + "_skel.ply";
-    if (!std::experimental::filesystem::exists(skel_filename))
+    if (!fs::exists(skel_filename))
         skel_filename = "";
     cout << "skeleton file: " << skel_filename << endl;
     auto mcmsure_name = FLAGS_dofuncmap;
@@ -251,7 +251,7 @@ void export_scalar_on_voxel_surf(const voxelvoro::VoroInfo& _voro,
         _voro);
 }
 
-void main(int _argc, char* _argv[])
+int main(int _argc, char* _argv[])
 {
     string progname = fs::path(_argv[0]).filename().generic_string();
     // set usage of the program
@@ -638,7 +638,7 @@ void main(int _argc, char* _argv[])
 
 FAILURE:
     printUsage();
-    exit(-1);
+    return 1;
 SUCCESS:
-    exit(0);
+    return 0;
 }

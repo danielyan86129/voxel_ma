@@ -1,4 +1,4 @@
-#include "ccthin.h"
+#include <voxelcore/ccthin.h>
 
 #include <cassert>
 #include <iostream>
@@ -201,12 +201,12 @@ void CellComplexThinning::setComponentFaceNumberThresh(int _t)
 void CellComplexThinning::prune(float _f_t, float _l_t,
                                 bool _remove_small_components)
 {
-    auto sanity_check = [&]() {
+    [[maybe_unused]] auto sanity_check = [&]() {
         for (unsigned ei = 0; ei < m_cc->numEdges(); ++ei)
         {
             if (this->m_ref_edge_per_prune[ei] == 0 && !m_removed[0][ei])
             {
-                const auto& e = m_cc->getEdge(ei);
+                [[maybe_unused]] const auto& e = m_cc->getEdge(ei);
                 /*cout << "0-ref edge " << ei << e << " not removed! "
                         << ( part_of_orig_edge( ei ) ? "st edge." : "dual edge."
                    ) <<" "
@@ -387,7 +387,6 @@ void CellComplexThinning::prune(float _f_t, float _l_t,
                     << "(check simple pair removal logic, or the logic used to "
                        "perform this test.)"
                     << endl;
-                // goto END_OF_POST_TEST;
             }
         }
     }
@@ -419,11 +418,8 @@ void CellComplexThinning::prune(float _f_t, float _l_t,
                     cout << endl;
                 }
             }
-            // goto END_OF_POST_TEST;
-            // break;
         }
     }
-END_OF_POST_TEST:;
 }
 
 cellcomplex CellComplexThinning::remainingCC()
@@ -570,10 +566,10 @@ void CellComplexThinning::prune_while_iteration(
         }
 
         // logic checkpoint
-        if (!(spr.type == simple_pair::FE_PAIR &&
-                  m_ref_edge_per_prune[spr.idx1] == 1 ||
-              spr.type == simple_pair::EV_PAIR &&
-                  m_ref_vert_per_prune[spr.idx1] == 1))
+        if (!((spr.type == simple_pair::FE_PAIR &&
+               m_ref_edge_per_prune[spr.idx1] == 1) ||
+              (spr.type == simple_pair::EV_PAIR &&
+               m_ref_vert_per_prune[spr.idx1] == 1)))
         {
             cout << "logic err: simple pair type " << spr.type;
             if (spr.type == simple_pair::FE_PAIR)
@@ -803,7 +799,8 @@ void CellComplexThinning::mark_components(float _cmpnt_geomSize_t,
         // start growing from this edge:
         // initialize queue with this only face
         int seed_fi = -1;
-        for (auto ith_nb_f = 0; ith_nb_f < m_cc->cntNbFacesofEdge(ei); ith_nb_f)
+        for (auto ith_nb_f = 0; ith_nb_f < m_cc->cntNbFacesofEdge(ei);
+             ++ith_nb_f)
         {
             auto nb_fi = m_cc->nbFaceofEdge(ei, ith_nb_f);
             if (!m_removed[FACE][nb_fi])
@@ -838,7 +835,7 @@ void CellComplexThinning::mark_components(float _cmpnt_geomSize_t,
                 // if ( _ref_edge[f[i]] > 1 )
                 {
                     for (auto ith_nb_f = 0;
-                         ith_nb_f < m_cc->cntNbFacesofEdge(ei); ith_nb_f)
+                         ith_nb_f < m_cc->cntNbFacesofEdge(ei); ++ith_nb_f)
                     {
                         auto nb_fi = m_cc->nbFaceofEdge(ei, ith_nb_f);
                         // skip nb face that's already removed
@@ -847,7 +844,7 @@ void CellComplexThinning::mark_components(float _cmpnt_geomSize_t,
 
                         // only push those nb faces that are not yet in the
                         // current component to the queue
-                        auto pre_size = face_cmpnt.size();
+                        [[maybe_unused]] auto pre_size = face_cmpnt.size();
                         face_cmpnt.insert(nb_fi);
                         q_faces.push(nb_fi);
                     }
@@ -912,7 +909,8 @@ namespace
 //
 // debug & test routines
 //
-void print_direct_g(const map<unsigned, list<out_item>>& _directed_graph)
+[[maybe_unused]] void
+print_direct_g(const map<unsigned, list<out_item>>& _directed_graph)
 {
     for (auto it = _directed_graph.begin(); it != _directed_graph.end(); ++it)
     {

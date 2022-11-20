@@ -1,4 +1,4 @@
-#include "spaceinfo.h"
+#include <voxelcore/spaceinfo.h>
 
 const point SpaceConverter::vox_corner_offset[8] = {
     // x = -0.5 plane

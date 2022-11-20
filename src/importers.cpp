@@ -1,18 +1,20 @@
-#include "importers.h"
-#include "densevolume.h"
-#include "octree.h"
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
-#include <plyall.h>
-#include <reader.h> // Tao's volume reader
 #include <sstream>
+
+#include <isosurface/reader.h> // Tao's volume reader
+
+#include <voxelcore/densevolume.h>
+#include <voxelcore/importers.h>
+#include <voxelcore/octree.h>
+#include <voxelcore/plyall.h>
 
 namespace voxelvoro
 {
 using std::cout;
 using std::endl;
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 ImportErrCode readVolume(const char* _vol_file,
                          shared_ptr<Volume3DScalar>& _vol)
@@ -443,10 +445,10 @@ ImportErrCode readFromPLY(const char* _ply_filename, vector<point>& _output_vts,
     vector<ply::Edge> edges; // = *_skel_edges;
     vector<ply::Face> faces; //*_skel_faces;
 
-    ply::PLYreader ply_reader;
+    ply::PLYReader ply_reader;
     auto err = ply_reader.read(_ply_filename, v_props_map, e_props_map,
                                f_props_map, vts, edges, faces);
-    if (err != ply::SUCCESS)
+    if (err != ply::ErrCode::SUCCESS)
     {
         cout << "Error: cannot read ply file: " << _ply_filename << endl;
         return ImportErrCode::NOOPENINPUT;

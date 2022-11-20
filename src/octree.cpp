@@ -1,13 +1,14 @@
-#include "octree.h"
-#include "geomalgo.h"
-#include "spaceinfo.h"
+#include <voxelcore/octree.h>
+#include <voxelcore/geomalgo.h>
+#include <voxelcore/spaceinfo.h>
+
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <unordered_set>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 using std::ifstream;
 using std::ofstream;
 using std::unordered_set;
@@ -95,7 +96,7 @@ unsigned char OctreeVolume::getNodeValues(int _i, int _j, int _k) const
     }
     else
     {
-        auto data = m_data;
+        [[maybe_unused]] auto data = m_data;
         auto retcode =
             get_node_values(_i, _j, _k, m_root, ivec3(0, 0, 0), m_max_res, val);
         assert(retcode == true);
@@ -111,7 +112,9 @@ bool OctreeVolume::outOfVolume(int _i, int _j, int _k) const
 void OctreeVolume::getBoundaryVoxels(vector<ivec3>& _voxels) const
 {
     unordered_set<ivec3, ivec3Hash> voxels_set;
-    int leaf_cnt = 0, internal_cnt = 0, empty_cnt = 0;
+    int leaf_cnt = 0;
+    int internal_cnt = 0;
+    [[maybe_unused]] int empty_cnt = 0;
     int all_zero_leaf_cnt = 0, all_one_leaf_cnt = 0;
 
     // recurse until leaf node is reached,
@@ -602,7 +605,7 @@ bool OctreeVolume::write_sog_file(const string& _sog_file) const
     os.write((char*)&this->m_max_res, sizeof(int));
 
     /* cleanup space */
-    delete header_buf;
+    delete[] header_buf;
 
     std::function<void(const OctreeNode*, const ivec3&, int)> write_node =
         [&](const OctreeNode* _node, const ivec3& _off, int _len) -> bool {
@@ -673,7 +676,7 @@ bool OctreeVolume::get_node_values(int _i, int _j, int _k, OctreeNode* _node,
                                    unsigned char& _vals) const
 {
     bool found = false;
-    unsigned char ret_values;
+    unsigned char ret_values = 0; // default invalid
 
     // get prepared if we are going to recurse
     char type;
@@ -750,7 +753,6 @@ bool OctreeVolume::get_node_values(int _i, int _j, int _k, OctreeNode* _node,
                                             node_len, node_values);
                     if (found)
                     {
-                        ret_values = node_values;
                         goto RETURN;
                     }
                 }
@@ -759,6 +761,7 @@ bool OctreeVolume::get_node_values(int _i, int _j, int _k, OctreeNode* _node,
     {
         // This should never happen!
         cout << "Error: invalid node type " << type << "!" << endl;
+        ret_values = 0;
         found = false;
     }
 
@@ -784,7 +787,7 @@ bool OctreeVolume::test_node(OctreeNode* _node, ivec3 _off, int _len)
     if (type == 2)
     {
         auto leafnode = dynamic_cast<LeafNode*>(_node);
-        auto nodevalue = leafnode->getValues();
+        [[maybe_unused]] auto nodevalue = leafnode->getValues();
         // test 8 corners with the value returned by getDataAt()
         for (int i = 0; i < 2; ++i)
             for (int j = 0; j < 2; ++j)
@@ -852,7 +855,6 @@ bool OctreeVolume::test_node(OctreeNode* _node, ivec3 _off, int _len)
                 }
     }
 
-RETURN:
     return ret_code;
 }
 

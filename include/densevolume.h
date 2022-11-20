@@ -2,8 +2,8 @@
 #define DENSEVOLUME_H
 
 #include "Volume3DScalar.h"
+#include <isosurface/volume.h> // Tao's volume rep.
 #include <memory>
-#include <volume.h> // Tao's volume rep.
 
 using std::shared_ptr;
 

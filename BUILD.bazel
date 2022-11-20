@@ -1,0 +1,178 @@
+cc_library(
+    name = "spaceinfo",
+    srcs = ["src/spaceinfo.cpp"],
+    deps = [
+        "//include:main",
+        # tao's iso-surface
+        # "@isosurface//:libisosurface",
+        # "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "plyall",
+    srcs = ["src/plyall.cpp"],
+    deps = [
+        "//include:main",
+        # tao's iso-surface
+        "@ply//:libply",
+    ],
+)
+
+cc_library(
+    name = "octree",
+    srcs = ["src/octree.cpp"],
+    hdrs = ["//include:octree.h"],
+    deps = [
+        "//include:main",
+        "@isosurface//:libisosurface",
+        "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "exporters",
+    srcs = ["src/exporters.cpp"],
+    deps = [
+        ":plyall",
+        ":voroinfo",
+        "//include:main",
+        "@isosurface//:libisosurface",
+        "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "importers",
+    srcs = ["src/importers.cpp"],
+    deps = [
+        ":plyall",
+        ":voroinfo",
+        "//include:main",
+        "@isosurface//:libisosurface",
+        "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "graphapp",
+    srcs = ["src/graphapp.cpp"],
+    deps = [
+        "//:geomalgo",
+        "//include:main",
+        "@boost//:graph",
+        # "@isosurface//:libisosurface",
+        "@ply//:libply",
+        # "@tetgen//:libtetgen",
+        # "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "geomalgo",
+    srcs = ["src/geomalgo.cpp"],
+    deps = [
+        "//include:main",
+    ],
+)
+
+cc_library(
+    name = "cellcomplex",
+    srcs = ["src/cellcomplex.cpp"],
+    deps = [
+        "//:geomalgo",
+        # "//:spaceinfo",
+    ],
+)
+
+cc_library(
+    name = "ccthin",
+    srcs = ["src/ccthin.cpp"],
+    deps = [
+        "//:cellcomplex",
+    ],
+)
+
+cc_library(
+    name = "edgecollapse",
+    srcs = ["src/edgecollapse.cpp"],
+    deps = [
+        "//:cellcomplex",
+    ],
+)
+
+cc_library(
+    name = "surfacing",
+    srcs = ["src/surfacing.cpp"],
+    deps = [
+        "//:geomalgo",
+        "//:spaceinfo",
+    ],
+)
+
+cc_library(
+    name = "voxelapps",
+    srcs = ["src/voxelapps.cpp"],
+    deps = [
+        ":voroinfo",
+        "//:cellcomplex",
+        "@ann//:libann",
+        "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_library(
+    name = "highlevelalgo",
+    srcs = ["src/highlevelalgo.cpp"],
+    deps = [
+        "//:exporters",
+        "//:importers",
+        "//:octree",
+        "//:surfacing",
+        "//:voxelapps",
+    ],
+)
+
+cc_library(
+    name = "voroinfo",
+    srcs = ["src/voroinfo.cpp"],
+    deps = [
+        "//:ccthin",
+        "//:cellcomplex",
+        "//:spaceinfo",
+        "@ann//:libann",
+    ],
+)
+
+cc_binary(
+    name = "main_voroUtility",
+    srcs = ["src/voroUtility.cpp"],
+    deps = [
+        "//:exporters",
+        "//:graphapp",
+        "//:highlevelalgo",
+        "//:importers",
+        "@ann//:libann",
+        "@com_github_gflags_gflags//:gflags",
+        "@trimesh//:libtrimesh",
+    ],
+)
+
+cc_binary(
+    name = "main_dijkstra",
+    srcs = ["src/dijkstra-example.cpp"],
+    deps = [
+        "//include:main",
+        # ANN defines lib in `src` dir
+        "@ann//:libann",
+        # tetgen has targets at the pkg level
+        "@tetgen//:libtetgen",
+        # tao's iso-surface
+        "@isosurface//:libisosurface",
+        "@trimesh//:libtrimesh",
+        # gflags
+        "@com_github_gflags_gflags//:gflags",
+        # boost
+        "@boost//:graph",
+    ],
+)

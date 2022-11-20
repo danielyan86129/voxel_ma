@@ -4,7 +4,7 @@
 #include <cmath>
 #include <memory>
 
-#include <Cube.h> // Tao's occupancy mask
+#include <isosurface/Cube.h> // Tao's occupancy mask
 //#include <volume.h> // Tao's volume struct
 #include "Volume3DScalar.h"
 

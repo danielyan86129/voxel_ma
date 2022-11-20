@@ -1,7 +1,7 @@
 #pragma once
 #include "exporters.h"
 #include "importers.h"
-#include <tetgen.h>
+#include <tetgen/tetgen.h>
 
 namespace voxelvoro
 {
@@ -9,14 +9,17 @@ namespace voxelvoro
 **  Tetgen structures related functions
 ****************************************/
 
-//
-// my version of making a tetgenmesh from a tetgenio
-void my_tetrahedralize(char* switches, tetgenio* _in, tetgenio* out,
-                       tetgenmesh& m, tetgenio* addin = nullptr,
-                       tetgenio* bgmin = nullptr);
-void my_tetrahedralize(tetgenbehavior* _b, tetgenio* _in, tetgenio* _out,
-                       tetgenmesh& _m, tetgenio* _addin = nullptr,
-                       tetgenio* _bgmin = nullptr);
+/**
+ * Commented out due to incompatible with tetgen1.6
+ */
+// //
+// // my version of making a tetgenmesh from a tetgenio
+// void my_tetrahedralize(char* switches, tetgenio* _in, tetgenio* out,
+//                        tetgenmesh& m, tetgenio* addin = nullptr,
+//                        tetgenio* bgmin = nullptr);
+// void my_tetrahedralize(tetgenbehavior* _b, tetgenio* _in, tetgenio* _out,
+//                        tetgenmesh& _m, tetgenio* _addin = nullptr,
+//                        tetgenio* _bgmin = nullptr);
 //
 // convert a list of points to tetgen's rep
 // NOTE:

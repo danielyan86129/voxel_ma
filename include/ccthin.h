@@ -3,10 +3,10 @@
 
 #include "cellcomplex.h"
 #include "commondefs.h"
-#include <XForm.h> // trimesh's transformation matrix
 #include <map>
 #include <queue>
 #include <set>
+#include <trimesh/XForm.h> // trimesh's transformation matrix
 
 using namespace std;
 
@@ -107,7 +107,7 @@ public:
     // return the remaining part of cc after thinning as a cc.
     // faces will be triangulated, and the face index for each triangle is
     // recorded
-    cellcomplex CellComplexThinning::remainingCC();
+    cellcomplex remainingCC();
     void remainingCC(vector<point>& vts_cc, vector<ivec2>& edges_cc,
                      vector<uTriFace>& tri_faces_cc,
                      vector<int>* _from_fi = nullptr) const;

@@ -4,7 +4,7 @@
 #include <vector>
 using std::vector;
 
-#include <reader.h> // tao's MRC reader
+#include <isosurface/reader.h> // tao's MRC reader
 
 #include "Volume3DScalar.h"
 #include "commondefs.h"

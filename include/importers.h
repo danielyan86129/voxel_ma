@@ -72,6 +72,7 @@ readMedialCurveInfo(const char* _mc_geom_filename,
                     vector<point>& _mc_vts, vector<float>& _mc_msure,
                     vector<int>& _mc_order, vector<point>* _skel_vts,
                     vector<ivec2>* _skel_edges, vector<uTriFace>* _skel_faces);
+
 } // namespace voxelvoro
 
 #endif

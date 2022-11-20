@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <tetgen.h>
+#include <tetgen/tetgen.h>
 
 //#include <volume.h> // Tao's volume
 #include "Volume3DScalar.h"

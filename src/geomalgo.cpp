@@ -1,4 +1,4 @@
-#include "geomalgo.h"
+#include <voxelcore/geomalgo.h>
 
 #include <queue>
 #include <unordered_map>
@@ -67,7 +67,7 @@ bool is_degenerate(const vector<point> _poly, float _eps)
 int findNumConnComponents(const vector<point>& _vts,
                           const vector<ivec2>& _edges)
 {
-    vector<vector<int>> vvadj(_vts.size(), {});
+    vector<vector<int>> vvadj(_vts.size(), vector<int>{});
     for (auto e : _edges)
     {
         vvadj[e[0]].push_back(e[1]);
