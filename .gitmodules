@@ -1,0 +1,15 @@
+[submodule "3rdparty/ply"]
+	path = 3rdparty/ply
+	url = git@github.com:danielyan86129/ply.git
+[submodule "3rdparty/ann"]
+	path = 3rdparty/ann
+	url = git@github.com:danielyan86129/ann.git
+[submodule "3rdparty/tetgen"]
+	path = 3rdparty/tetgen
+	url = git@github.com:danielyan86129/tetgen.git
+[submodule "3rdparty/isosurface_tao"]
+	path = 3rdparty/isosurface_tao
+	url = git@github.com:danielyan86129/isosurface_tao.git
+[submodule "3rdparty/trimesh2"]
+	path = 3rdparty/trimesh2
+	url = git@github.com:danielyan86129/trimesh2.git
