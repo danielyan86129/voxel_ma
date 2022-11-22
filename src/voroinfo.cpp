@@ -124,6 +124,7 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
     m_geom.clearVertList();
     this->m_is_finite_v.clear();
     const REAL* vpts = _tetio.vpointlist;
+    cout << "Tetgen # voro nodes output: " << _tetio.numberofvpoints << endl;
     for (size_t i = 0; i < _tetio.numberofvpoints; ++i)
     {
         point v(vpts[i * 3], vpts[i * 3 + 1], vpts[i * 3 + 2]);
@@ -136,7 +137,7 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
             m_is_finite_v.push_back(true);
         m_bbox += v;
     }
-    cout << "Voro nodes loaded." << endl;
+    cout << "Voro nodes loaded: " << m_geom.numVts() << endl;
 
     // load voro edges
     m_geom.clearEdgeList();
@@ -172,6 +173,7 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
                 m_is_finite_e.push_back(true);
         m_geom.appendEdge(e);
     }
+    cout << "Voro edges loaded: " << m_geom.numEdges() << endl;
 
     // load voro faces
     m_geom.clearFaceList();
@@ -230,6 +232,8 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
     NEXT_FACE: // refer to this label to quickly skip this face
                ;
     }
+    cout << "Voro faces loaded: " << m_geom.numFaces() << endl;
+
     m_face_sites.shrink_to_fit();
     m_is_finite_f.shrink_to_fit();
     if (_vol)
@@ -241,6 +245,8 @@ bool VoroInfo::loadFromTetgenFiles(const tetgenio& _tetio,
 
     cout << "time -> load voro from tetgen: " << t.elapseMilli().count()
          << " ms" << endl;
+    cout << "loaded voro size: " << m_geom.numVts() << "/" << m_geom.numEdges()
+         << "/" << m_geom.numFaces() << endl;
     return true;
 }
 
@@ -1855,6 +1861,7 @@ void VoroInfo::load_voro_faces(
 
         // only need to handle element *finiteness* when loading entire VD
         if (!_vol)
+        {
             if (f_erep[f_erep.size() - 1] == -1)
             {
                 // grab adjacent 2 half-infinite edges to create this new edge
@@ -1870,6 +1877,7 @@ void VoroInfo::load_voro_faces(
             {
                 m_is_finite_f.push_back(true);
             }
+        }
 
         f_of_vts.resize(nsides);
         trace_face(f_erep, m_geom.m_edges, f_of_vts);
@@ -2030,8 +2038,8 @@ void VoroInfo::compute_multiplicity_vts()
     int num_vts = (int)m_geom.numVts();
     for (int vi = 0; vi < num_vts; ++vi)
     {
-        if (vi == num_vts - 1)
-            [[maybe_unused]] int stop = 1;
+        if (vi == num_vts - 1) [[maybe_unused]]
+            int stop = 1;
         // construct local star for cur vertex
         one_ring_faces.clear();
         one_ring_faces.insert(v_f_adj_tbl[vi].begin(), v_f_adj_tbl[vi].end());

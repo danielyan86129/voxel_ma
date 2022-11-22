@@ -464,12 +464,16 @@ int main(int _argc, char* _argv[])
             shared_ptr<Volume3DScalar> vol;
             if (voxelvoro::readVolume(_argv[cur_arg_idx], vol) ==
                 voxelvoro::ImportErrCode::SUCCESS)
+            {
                 cout << "Done: volume file reading." << endl;
+            }
             else
             {
                 cout << "Error: couldn't read volume file." << endl;
                 goto FAILURE;
             }
+            // // uncomment to get basic volume info printed
+            // SpaceConverter::printInfo(vol);
 
             cout << "Computing voro ..." << endl;
             voxelvoro::VoroInfo voro;

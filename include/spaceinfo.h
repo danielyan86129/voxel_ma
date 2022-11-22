@@ -5,7 +5,7 @@
 #include <memory>
 
 #include <isosurface/Cube.h> // Tao's occupancy mask
-//#include <volume.h> // Tao's volume struct
+// #include <volume.h> // Tao's volume struct
 #include "Volume3DScalar.h"
 
 #include "commondefs.h"
@@ -28,6 +28,26 @@ struct SpaceConverter
         auto cidx = (_ix << 2) | (_iy << 1) | _iz;
         const auto& o = vox_corner_offset[cidx];
         return point(_vox[0] + o[0], _vox[1] + o[1], _vox[2] + o[2]);
+    }
+    static void printInfo(const shared_ptr<Volume3DScalar> _vol)
+    {
+        int n_occ = 0;
+        int n_unocc = 0;
+        for (int x = 0; x < _vol->getSizeX(); ++x)
+        {
+            for (int y = 0; y < _vol->getSizeY(); ++y)
+            {
+                for (int z = 0; z < _vol->getSizeZ(); ++z)
+                {
+                    bool occ = voxTaggedAsInside({x, y, z}, _vol);
+                    n_occ += occ;
+                    n_unocc += !occ;
+                }
+            }
+        }
+        std::cout << "====> Basic info about volume:" << std::endl;
+        std::cout << "occupied/empty voxels: " << n_occ << "/" << n_unocc
+                  << std::endl;
     }
     // return whether specified voxel in the given volume is tagged as "inside"
     static bool voxTaggedAsInside(const ivec3& _vox,
@@ -102,9 +122,9 @@ struct SpaceConverter
     static inline int get_occupancy_at_vox(const ivec3& _v,
                                            const Volume3DScalar* _vol)
     {
-        auto val = SpaceConverter::outOfVolBounds(_v, _vol)
-                       ? 0
-                       : _vol->getDataAt(_v[0], _v[1], _v[2]) > 0.0 ? 1 : 0;
+        auto val = SpaceConverter::outOfVolBounds(_v, _vol)     ? 0
+                   : _vol->getDataAt(_v[0], _v[1], _v[2]) > 0.0 ? 1
+                                                                : 0;
         return val;
     }
     static inline int

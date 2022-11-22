@@ -503,11 +503,17 @@ void computeVD(const shared_ptr<Volume3DScalar>& _vol, VoroInfo& _voro)
 void computeVD(tetgenio& _tet_in, VoroInfo& _voro,
                shared_ptr<Volume3DScalar> _vol)
 {
-    char* tet_args = "NEFv"; // don't need tets, but want voronoi
+    // char* tet_args = "NEFv"; // don't need tets, but want voronoi
+    tetgenbehavior tet_in_args;
+    tet_in_args.nonodewritten = 1;
+    tet_in_args.noelewritten = 1;
+    tet_in_args.nofacewritten = 1;
+    tet_in_args.voroout = 1;
     tetgenio tet_out;
     /*tetgenmesh tet_msh;
     my_tetrahedralize( tet_args, &_tet_in, &tet_out, tet_msh );*/
-    tetrahedralize(tet_args, &_tet_in, &tet_out);
+    // tetrahedralize(tet_args, &_tet_in, &tet_out);
+    tetrahedralize(&tet_in_args, &_tet_in, &tet_out);
 
     // set sites to voro
     vector<point> sites;
@@ -693,9 +699,9 @@ exportInsideVoroMesh(VoroInfo& _voro, const shared_ptr<Volume3DScalar>& _vol,
     {
         vector<uTriFace> output_tri_faces;
         vector<int> valid_face_indices;
-        _inside_only ? _voro.getValidFaces(valid_face_indices)
-                     : _finite_only ? _voro.getFiniteFaces(valid_face_indices)
-                                    : _voro.getAllFaces(valid_face_indices);
+        _inside_only   ? _voro.getValidFaces(valid_face_indices)
+        : _finite_only ? _voro.getFiniteFaces(valid_face_indices)
+                       : _voro.getAllFaces(valid_face_indices);
         cout << "# faces about to write to file: " << valid_face_indices.size()
              << endl;
         _voro.getFaces(valid_face_indices, output_tri_faces);
@@ -733,13 +739,16 @@ exportInsideVoroMesh(VoroInfo& _voro, const shared_ptr<Volume3DScalar>& _vol,
         _voro.extractInsideWithMeasure(MeasureForMA::LAMBDA, vts, edges,
                                        tri_faces, from_fi, vts_msure,
                                        edges_msure, all_tri_msure);
-        std::cout << "inside part extracted. " << std::endl;
+        std::cout << "inside part extracted. # vts/edges/faces: "
+                  << _voro.geom().numVts() << "/" << _voro.geom().numEdges()
+                  << "/" << _voro.geom().numFaces() << std::endl;
         if (vts.empty())
         {
             cout << "IVD: 0 vts; IO skipped." << endl;
             goto END_PLY_BRANCH;
         }
-        { // local scope to allow goto to skip
+        {
+            // local scope to allow goto to skip
             // convert vertices to original mesh space
             point v_trans;
             auto vts_trans = vts;
@@ -783,11 +792,21 @@ exportInsideVoroMesh(VoroInfo& _voro, const shared_ptr<Volume3DScalar>& _vol,
                     cout << "Failed: writing radii to file! " << endl;
             }
             t_write_IVD.stop();
-            auto min_max_msure =
+            auto face_min_max_msure =
                 std::minmax_element(all_tri_msure.begin(), all_tri_msure.end());
-            cout << "range of measure: "
-                 << "[" << *min_max_msure.first << "," << *min_max_msure.second
-                 << "]" << endl;
+            cout << "face measure range: "
+                 << "[" << *face_min_max_msure.first << ","
+                 << *face_min_max_msure.second << "]" << endl;
+            auto edge_min_max_msure =
+                std::minmax_element(edges_msure.begin(), edges_msure.end());
+            cout << "edge measure range: "
+                 << "[" << *edge_min_max_msure.first << ","
+                 << *edge_min_max_msure.second << "]" << endl;
+            auto vert_min_max_msure =
+                std::minmax_element(vts_msure.begin(), vts_msure.end());
+            cout << "vertex measure range: "
+                 << "[" << *vert_min_max_msure.first << ","
+                 << *vert_min_max_msure.second << "]" << endl;
 
             if (_full_or_thin == 1) // not writing thinned VC?
                 goto END_PLY_BRANCH;

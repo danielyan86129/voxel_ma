@@ -201,7 +201,8 @@ void CellComplexThinning::setComponentFaceNumberThresh(int _t)
 void CellComplexThinning::prune(float _f_t, float _l_t,
                                 bool _remove_small_components)
 {
-    [[maybe_unused]] auto sanity_check = [&]() {
+    [[maybe_unused]] auto sanity_check = [&]()
+    {
         for (unsigned ei = 0; ei < m_cc->numEdges(); ++ei)
         {
             if (this->m_ref_edge_per_prune[ei] == 0 && !m_removed[0][ei])
