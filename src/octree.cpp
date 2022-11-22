@@ -1,5 +1,5 @@
-#include <voxelcore/octree.h>
 #include <voxelcore/geomalgo.h>
+#include <voxelcore/octree.h>
 #include <voxelcore/spaceinfo.h>
 
 #include <cassert>
@@ -36,15 +36,15 @@ OctreeVolume::OctreeVolume(const char* _filename) : Volume3DScalar()
         cout << "Octree volume construction failed." << endl;
     }
     // test
-    /*auto test_ret = test_getDataAt();
-    if ( test_ret == false )
-    {
-            cout << "Failed: test getDataAt() on all nodes." << endl;
-    }
-    else
-    {
-            cout << "Succeeded: test getDataAt() on all nodes." << endl;
-    }*/
+    // auto test_ret = test_getDataAt();
+    // if (test_ret == false)
+    // {
+    //     cout << "Failed: test getDataAt() on all nodes." << endl;
+    // }
+    // else
+    // {
+    //     cout << "Succeeded: test getDataAt() on all nodes." << endl;
+    // }
 }
 
 OctreeVolume::OctreeVolume(const Volume3DScalar* _src_vol)
@@ -96,7 +96,6 @@ unsigned char OctreeVolume::getNodeValues(int _i, int _j, int _k) const
     }
     else
     {
-        [[maybe_unused]] auto data = m_data;
         auto retcode =
             get_node_values(_i, _j, _k, m_root, ivec3(0, 0, 0), m_max_res, val);
         assert(retcode == true);
@@ -120,56 +119,55 @@ void OctreeVolume::getBoundaryVoxels(vector<ivec3>& _voxels) const
     // recurse until leaf node is reached,
     // then append all corners of that node to the list.
     std::function<void(OctreeNode*, ivec3, int)> grab_all_leaf =
-        [&](OctreeNode* _node, ivec3 _off, int _len) {
-            // get prepared if we are going to recurse
-            unsigned char type;
-            ivec3 node_off;
-            int node_len = _len / 2;
-            unsigned char values;
+        [&](OctreeNode* _node, ivec3 _off, int _len)
+    {
+        // get prepared if we are going to recurse
+        unsigned char type;
+        ivec3 node_off;
+        int node_len = _len / 2;
+        unsigned char values;
 
-            // get type of the node
-            type = _node->type;
+        // get type of the node
+        type = _node->type;
 
-            // only care about internal and leaf nodes
-            if (type == 2)
+        // only care about internal and leaf nodes
+        if (type == 2)
+        {
+            leaf_cnt++;
+            // leaf node. no need to recurse.
+            auto leafnode = dynamic_cast<LeafNode*>(_node);
+            values = leafnode->getValues();
+            if (values == 0)
             {
-                leaf_cnt++;
-                // leaf node. no need to recurse.
-                auto leafnode = dynamic_cast<LeafNode*>(_node);
-                values = leafnode->getValues();
-                if (values == 0)
-                {
-                    all_zero_leaf_cnt++;
-                }
-                else if (values == 0xFF)
-                {
-                    all_one_leaf_cnt++;
-                }
-                // add all its corners as boundary voxels
-                for (int i = 0; i < 2; i++)
-                    for (int j = 0; j < 2; j++)
-                        for (int k = 0; k < 2; k++)
-                        {
-                            voxels_set.insert(_off + ivec3(k, j, i));
-                        }
+                all_zero_leaf_cnt++;
             }
-            else if (type == 0)
+            else if (values == 0xFF)
             {
-                internal_cnt++;
-                // interior node. recurse.
-                auto intnode = dynamic_cast<IntNode*>(_node);
-                for (int i = 0; i < 2; i++)
-                    for (int j = 0; j < 2; j++)
-                        for (int k = 0; k < 2; k++)
-                        {
-                            node_off =
-                                _off + ivec3(/*k, j, i*/ i, j, k) * node_len;
-                            auto childnode =
-                                intnode->getChild(/*k, j, i*/ i, j, k);
-                            grab_all_leaf(childnode, node_off, node_len);
-                        }
+                all_one_leaf_cnt++;
             }
-        }; // grab_all_leaf()
+            // add all its corners as boundary voxels
+            for (int i = 0; i < 2; i++)
+                for (int j = 0; j < 2; j++)
+                    for (int k = 0; k < 2; k++)
+                    {
+                        voxels_set.insert(_off + ivec3(k, j, i));
+                    }
+        }
+        else if (type == 0)
+        {
+            internal_cnt++;
+            // interior node. recurse.
+            auto intnode = dynamic_cast<IntNode*>(_node);
+            for (int i = 0; i < 2; i++)
+                for (int j = 0; j < 2; j++)
+                    for (int k = 0; k < 2; k++)
+                    {
+                        node_off = _off + ivec3(/*k, j, i*/ i, j, k) * node_len;
+                        auto childnode = intnode->getChild(/*k, j, i*/ i, j, k);
+                        grab_all_leaf(childnode, node_off, node_len);
+                    }
+        }
+    }; // grab_all_leaf()
 
     grab_all_leaf(m_root, ivec3(0, 0, 0), m_max_res);
     cout << "# leaves with all 0s/1s: " << all_zero_leaf_cnt << "/"
@@ -276,8 +274,9 @@ bool OctreeVolume::read_sof_file(const string& _sof_file)
 
     // recursively create octree from the rest of the file
     int leaf_cnt = 0, internal_cnt = 0, empty_cnt = 0;
-    std::function<OctreeNode*(ivec3, int)> mknode =
-        [&](const ivec3& _off, int _len) -> OctreeNode* {
+    std::function<OctreeNode*(ivec3, int)> mknode = [&](const ivec3& _off,
+                                                        int _len) -> OctreeNode*
+    {
         // get prepared if we are going to recurse
         unsigned char type;
         ivec3 node_off;
@@ -387,7 +386,8 @@ bool OctreeVolume::read_sog_file(const string& _sog_file)
     float dump[3];
     // start from root at level 0, recursively construct the tree
     std::function<OctreeNode*(int /*ivec3, int*/)> mknode =
-        [&](int _level /*const ivec3& _off, int _len*/) -> OctreeNode* {
+        [&](int _level /*const ivec3& _off, int _len*/) -> OctreeNode*
+    {
         // get prepared if we are going to recurse
         unsigned char type;
         /*ivec3 node_off;
@@ -510,7 +510,8 @@ bool OctreeVolume::write_sof_file(const string& _sof_file) const
     os.write((char*)&m_max_res, sizeof(int));
 
     std::function<void(const OctreeNode*)> write_node =
-        [&](const OctreeNode* _node) -> bool {
+        [&](const OctreeNode* _node) -> bool
+    {
         auto type = (char)_node->getType();
         os.write(&type, sizeof(char));
         unsigned char values = 0x00;
@@ -608,7 +609,8 @@ bool OctreeVolume::write_sog_file(const string& _sog_file) const
     delete[] header_buf;
 
     std::function<void(const OctreeNode*, const ivec3&, int)> write_node =
-        [&](const OctreeNode* _node, const ivec3& _off, int _len) -> bool {
+        [&](const OctreeNode* _node, const ivec3& _off, int _len) -> bool
+    {
         auto type = (char)_node->getType();
         os.write(&type, sizeof(char));
         unsigned char values = 0x00;
@@ -753,6 +755,7 @@ bool OctreeVolume::get_node_values(int _i, int _j, int _k, OctreeNode* _node,
                                             node_len, node_values);
                     if (found)
                     {
+                        ret_values = node_values;
                         goto RETURN;
                     }
                 }
