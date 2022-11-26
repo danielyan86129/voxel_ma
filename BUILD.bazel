@@ -101,9 +101,19 @@ cc_library(
     ],
 )
 
+# needed by surfacing lib
+filegroup(
+    name = "resources",
+    srcs = [
+        "cycle8.txt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "surfacing",
     srcs = ["src/surfacing.cpp"],
+    data = ["//:resources"],
     deps = [
         "//:geomalgo",
         "//:spaceinfo",
