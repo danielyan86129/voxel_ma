@@ -9,7 +9,7 @@
 
 #include <tetgen/tetgen.h>
 
-//#include <volume.h> // Tao's volume
+// #include <volume.h> // Tao's volume
 #include "Volume3DScalar.h"
 
 #include "ccthin.h"

@@ -119,8 +119,10 @@ inline bool closeVertices(const point& _v1, const point& _v2, float _eps)
 // if i is not found in f, then nothing changes
 inline void replaceVinF(uTriFace& _f, int _i, int _j)
 {
-    _f[0] == _i ? _f[0] = _j
-                : _f[1] == _i ? _f[1] = _j : _f[2] == _i ? _f[2] = _j : 0;
+    _f[0] == _i   ? _f[0] = _j
+    : _f[1] == _i ? _f[1] = _j
+    : _f[2] == _i ? _f[2] = _j
+                  : 0;
 }
 
 // trace face boundary (a seq of vertices) into a seq of edges

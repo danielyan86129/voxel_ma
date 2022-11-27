@@ -6,7 +6,7 @@
 #include <set>
 #include <vector>
 
-//#include <volume.h> // Tao's volume struct
+// #include <volume.h> // Tao's volume struct
 #include "Volume3DScalar.h"
 
 #include "commondefs.h"

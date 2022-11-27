@@ -81,9 +81,8 @@ void TopoPreservEdgeCollapser::collapse()
     /*collapse all degenerate edges*/
     std::cout << "total # edges to inspect: " << e_f_adj_tbl.size()
               << std::endl;
-    auto are_same = [](const point& _v1, const point& _v2) -> bool {
-        return util::closeVertices(_v1, _v2, 0.0000001f);
-    };
+    auto are_same = [](const point& _v1, const point& _v2) -> bool
+    { return util::closeVertices(_v1, _v2, 0.0000001f); };
     bool u_in_bndry[3];
     bool v_in_bndry[3];
     unordered_set<int> lk_u_vts;
@@ -96,8 +95,9 @@ void TopoPreservEdgeCollapser::collapse()
     bool edge_collapsed = false;
     // iterate through each edge
     int progress = 0;
-    auto update_it_to_next_edge = [&e_f_adj_tbl](EFTableIter& it,
-                                                 bool edge_collapsed) {
+    auto update_it_to_next_edge =
+        [&e_f_adj_tbl](EFTableIter& it, bool edge_collapsed)
+    {
         if (edge_collapsed == true)
         {
             // delete this edge
@@ -144,10 +144,9 @@ void TopoPreservEdgeCollapser::collapse()
         // the edge uv
         lk_u_vts.clear();
         lk_u_vts.insert(nb_vts_u.begin(), nb_vts_u.end());
-        int num_common_vts =
-            std::count_if(nb_vts_v.begin(), nb_vts_v.end(), [&](int _vid) {
-                return lk_u_vts.find(_vid) != lk_u_vts.end();
-            });
+        int num_common_vts = std::count_if(
+            nb_vts_v.begin(), nb_vts_v.end(),
+            [&](int _vid) { return lk_u_vts.find(_vid) != lk_u_vts.end(); });
         // if u and v are not manifold vts (i.e. in 1st or higher boundary),
         // then their respective lk includes the dummy vertex w
         num_common_vts += int(!u_in_bndry[0] && !v_in_bndry[0]);
@@ -554,9 +553,8 @@ void TopoPreservEdgeCollapser::compute_order()
             v_v_adj_tbl[e[1]].push_back(ivec2(e[0], i));
         }
 
-        auto is_nonmanifold_v = [&](int _i) -> bool {
-            return v_v_adj_tbl[_i].size() != 2;
-        };
+        auto is_nonmanifold_v = [&](int _i) -> bool
+        { return v_v_adj_tbl[_i].size() != 2; };
         bool has_nonMani_vert = false;
 
         // set degree cnt for one-ring vts

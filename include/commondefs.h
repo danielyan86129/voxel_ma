@@ -20,11 +20,11 @@ typedef trimesh::Vec<3, unsigned int> uTriFace;
 typedef trimesh::vec3 TriColor;
 struct RGBColor;
 
-//#include <Eigen/Dense>
-// using point = Eigen::Vector3f;
-// using ivec3 = Eigen::Vector3i;
-// using ivec4 = Eigen::Vector4i;
-// using face = Eigen::Vector3i;
+// #include <Eigen/Dense>
+//  using point = Eigen::Vector3f;
+//  using ivec3 = Eigen::Vector3i;
+//  using ivec4 = Eigen::Vector4i;
+//  using face = Eigen::Vector3i;
 
 // the hasher for ivec2
 struct ivec2Hash
