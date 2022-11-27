@@ -40,10 +40,10 @@ struct ivec3_less
 {
     bool operator()(const ivec3& _a, const ivec3& _b) const
     {
-        return _a[0] != _b[0]
-                   ? _a[0] < _b[0]
-                   : _a[1] != _b[1] ? _a[1] < _b[1]
-                                    : _a[2] != _b[2] ? _a[2] < _b[2] : false;
+        return _a[0] != _b[0]   ? _a[0] < _b[0]
+               : _a[1] != _b[1] ? _a[1] < _b[1]
+               : _a[2] != _b[2] ? _a[2] < _b[2]
+                                : false;
     }
 };
 SurfacerErrCode
@@ -68,7 +68,8 @@ Surfacer::extractBoundaryVtsAndFaces(const shared_ptr<Volume3DScalar>& _vol,
     ivec3 faces_ids[6];
 
     // extract the boundary bits around the given voxel
-    auto process_voxel = [&](int i, int j, int k) {
+    auto process_voxel = [&](int i, int j, int k)
+    {
         cur_vox = ivec3(i, j, k);
         get_corners_coords(i, j, k, _vol, cnrs_coords);
         get_corners_ids(i, j, k, _vol, cnrs_ids);
@@ -236,7 +237,8 @@ Surfacer::extractBoundaryVts(const shared_ptr<Volume3DScalar>& _vol,
     ivec3 cnrs_ids[8];
 
     // extract boundary vts around the given voxel
-    auto process_voxel = [&](int _i, int _j, int _k) {
+    auto process_voxel = [&](int _i, int _j, int _k)
+    {
         cur_vox = ivec3(_i, _j, _k);
         get_corners_coords(_i, _j, _k, _vol, cnrs_coords);
         get_corners_ids(_i, _j, _k, _vol, cnrs_ids);
@@ -328,10 +330,10 @@ int Surfacer::computeEulerChar(const vector<point>& _vts,
     /* compute the euler char for the boundary part first */
     unordered_map<ivec2, int, ivec2Hash> edge_refCntByFaces;
     // predicate for deciding whether edge/vert is singular
-    auto multiplicity_e = [&edge_refCntByFaces](const ivec2 _e) -> int {
-        return edge_refCntByFaces.find(_e)->second == 2 ? 1 : 2;
-    };
-    auto multiplicity_v = [&](int _vi) -> int {
+    auto multiplicity_e = [&edge_refCntByFaces](const ivec2 _e) -> int
+    { return edge_refCntByFaces.find(_e)->second == 2 ? 1 : 2; };
+    auto multiplicity_v = [&](int _vi) -> int
+    {
         /*if ( vert_refCntByFaces[ _vi ] != 6 ||
                 vert_refCntByFaces[ _vi ] != 9 )
                 return 1;*/
